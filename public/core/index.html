@@ -605,29 +605,49 @@
           signupBtn.textContent = "Processing Payment...";
           
           // Start checkout process with Creem
-          const response = await fetch('/functions/checkout', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              email,
-              userId: user.id,
-              success_url: `${window.location.origin}/success`,
-              metadata: {
-                signupDate: new Date().toISOString(),
-                source: 'web_signup'
-              }
-            })
-          });
+          try {
+            console.log('Initiating checkout process...');
+            const response = await fetch('/functions/checkout', {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                email,
+                userId: user.id,
+                success_url: `${window.location.origin}/success`,
+                metadata: {
+                  signupDate: new Date().toISOString(),
+                  source: 'web_signup'
+                }
+              })
+            });
 
-          const data = await response.json();
-          
-          if (data.url) {
-            // Redirect to Creem checkout page
-            window.location.href = data.url;
-          } else {
-            throw new Error(data.error || 'Checkout failed');
+            console.log('Checkout response status:', response.status);
+            const responseText = await response.text();
+            console.log('Checkout response text:', responseText);
+
+            let data;
+            try {
+              data = JSON.parse(responseText);
+            } catch (parseError) {
+              console.error('Failed to parse response as JSON:', parseError);
+              throw new Error('Invalid response from checkout service');
+            }
+
+            if (data.url) {
+              console.log('Redirecting to checkout URL:', data.url);
+              window.location.href = data.url;
+            } else {
+              console.error('No checkout URL in response:', data);
+              throw new Error(data.error || 'Checkout failed - no URL received');
+            }
+          } catch (checkoutError) {
+            console.error('Checkout process error:', checkoutError);
+            errorMessage.textContent = checkoutError.message || 'Failed to initiate checkout. Please try again.';
+            signupBtn.textContent = "Create Account";
+            signupBtn.disabled = false;
+            return;
           }
         } catch (error) {
           console.error('Signup/Payment error:', error);
