@@ -624,8 +624,17 @@
             });
 
             console.log('Checkout response status:', response.status);
+            
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const responseText = await response.text();
             console.log('Checkout response text:', responseText);
+
+            if (!responseText) {
+              throw new Error('Empty response from checkout service');
+            }
 
             let data;
             try {
@@ -638,9 +647,12 @@
             if (data.url) {
               console.log('Redirecting to checkout URL:', data.url);
               window.location.href = data.url;
+            } else if (data.error) {
+              console.error('Checkout error:', data.error);
+              throw new Error(data.error);
             } else {
-              console.error('No checkout URL in response:', data);
-              throw new Error(data.error || 'Checkout failed - no URL received');
+              console.error('Invalid response format:', data);
+              throw new Error('Invalid response format from checkout service');
             }
           } catch (checkoutError) {
             console.error('Checkout process error:', checkoutError);
