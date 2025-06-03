@@ -1,4 +1,18 @@
 export async function onRequestPost(context) {
+  // Add CORS headers
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+
+  // Handle OPTIONS request for CORS preflight
+  if (context.request.method === 'OPTIONS') {
+    return new Response(null, {
+      headers: corsHeaders
+    });
+  }
+
   try {
     const body = await context.request.json();
     const { userId, email, product_id, request_id, metadata, success_url } = body;
@@ -8,7 +22,10 @@ export async function onRequestPost(context) {
     if (!email) {
         return new Response(JSON.stringify({ error: 'Email is required' }), {
             status: 400,
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
         });
     }
 
@@ -44,7 +61,10 @@ export async function onRequestPost(context) {
       console.error('Error from Creem API:', res.status, res.statusText, errorBody);
       return new Response(JSON.stringify({ error: `Creem API error: ${res.status} - ${errorBody}` }), {
         status: res.status, // Forward the status code from Creem
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        }
       });
     }
 
@@ -54,13 +74,19 @@ export async function onRequestPost(context) {
     if (data.checkout_url) {
         console.log('Successfully created checkout session:', data.checkout_url);
         return new Response(JSON.stringify({ url: data.checkout_url }), {
-          headers: { "Content-Type": "application/json" }
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          }
         });
     } else {
         console.error('Creem API did not return checkout_url:', data);
          return new Response(JSON.stringify({ error: 'Creem API response missing checkout_url.', creemResponse: data }), {
           status: 500,
-          headers: { "Content-Type": "application/json" }
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          }
         });
     }
 
@@ -69,7 +95,10 @@ export async function onRequestPost(context) {
     console.error('Caught error in checkout function:', error);
     return new Response(JSON.stringify({ error: error.message || 'An unexpected error occurred.' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
     });
   }
 } 
