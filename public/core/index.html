@@ -607,7 +607,7 @@
           // Start checkout process with Creem
           try {
             console.log('Initiating checkout process...');
-            const response = await fetch('/functions/checkout', {
+            const response = await fetch('/api/checkout', {
               method: 'POST',
               headers: { 
                 'Content-Type': 'application/json'
@@ -626,6 +626,8 @@
             console.log('Checkout response status:', response.status);
             
             if (!response.ok) {
+              const errorText = await response.text();
+              console.error('Error response:', errorText);
               throw new Error(`HTTP error! status: ${response.status}`);
             }
             
