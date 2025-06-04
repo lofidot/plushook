@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ambient Sound Player Core</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Sound Player</title>
+  <meta name="description" content="A beautiful ambient sound player">
   <link rel="stylesheet" href="styles.css">
-  <!-- End of Selection -->
-  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.css">
 </head>
 <body>
-  <!-- === Main app content (edit as you wish) === -->
   <!-- Your Webflow section will start here -->
   <div class="main player-container" id="app">
     <div id="background-overlay" class="background-overlay"></div>
@@ -98,6 +97,10 @@
           <div class="timer-type-dot-container">
             <div class="timer-type-dot" data-timer-type="endless"></div>
             <div class="timer-type-tooltip">Endless Timer</div>
+          </div>
+          <div class="timer-type-dot-container">
+            <div class="timer-type-dot" data-timer-type="sleep"></div>
+            <div class="timer-type-tooltip">Sleep Timer</div>
           </div>
         </div>
         
@@ -200,17 +203,13 @@
             <path d="M10 2L14 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
         </button>
-        <!-- Mix Mode Toggle Button -->
-        <button id="mix-mode-toggle" class="control-btn" aria-label="Toggle Mix Mode">
-          <span id="mix-mode-label">Mix Mode: Off</span>
-        </button>
       </div>
     </div>
     
     <!-- Sound Library Bottom Sheet -->
     <div id="sound-library" class="bottom-sheet hidden">
       <div class="sheet-header">
-        <h3>Sound Library</h3>
+        <div id="mix-mode-switch-container"></div>
         <button id="close-library" class="close-btn" aria-label="Close">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -451,6 +450,7 @@
           <div id="action-buttons" class="action-buttons">
             <button class="help-btn" title="Demo"><i data-feather="help-circle"></i></button>
             <button class="clear-btn" title="Clear"><i data-feather="trash-2"></i></button>
+            <button class="copy-btn" title="Copy"><i data-feather="clipboard"></i></button>
             <button class="download-btn" title="Download"><i data-feather="download"></i></button>
             <button class="hide-btn" title="Hide"><i data-feather="chevron-down"></i></button>
           </div>
@@ -462,7 +462,6 @@
     <!-- Remove old show-list-btn if present -->
     <script>document.getElementById('show-list-btn')?.remove();</script>
   </div>
-
   <!-- === Auth Modal === -->
   <div id="auth-modal" class="auth-modal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;">
     <div class="glass-panel" style="position: relative; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 2em; border-radius: 12px; min-width: 320px; max-width: 90%; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); text-align: left; border: 1px solid rgba(255, 255, 255, 0.2); z-index: 10000;">
@@ -489,10 +488,7 @@
     </div>
   </div>
 
-  <!-- === Scripts for Auth and Payments === -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <script>
     // --- Auth Modal Logic ---
     const authModal = document.getElementById('auth-modal');
@@ -688,6 +684,9 @@
       }
     });
   </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="main.js"></script>
 </body>
-</html> 
+</html>

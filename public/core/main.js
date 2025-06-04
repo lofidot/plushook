@@ -902,7 +902,47 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function renderSoundLibrary() {
+      const sheetHeader = soundLibrary.querySelector('.sheet-header');
       const sheetContent = soundLibrary.querySelector('.sheet-content');
+      // Remove any existing mix mode switch
+      const oldSwitch = document.getElementById('mix-mode-switch');
+      if (oldSwitch) oldSwitch.remove();
+      // Create iOS-style switch container
+      let switchContainer = document.getElementById('mix-mode-switch-container');
+      if (!switchContainer) {
+        switchContainer = document.createElement('div');
+        switchContainer.id = 'mix-mode-switch-container';
+        sheetHeader.insertBefore(switchContainer, sheetHeader.firstChild);
+      }
+      // Build iOS-style switch markup
+      switchContainer.innerHTML = `
+        <label class="mix-switch-label">
+          <span style="margin-right:12px;font-weight:500;">Mix Mode</span>
+          <input type="checkbox" id="mix-mode-switch" ${state.isMixMode ? 'checked' : ''}>
+          <span class="mix-switch-slider"></span>
+        </label>
+      `;
+      // Add event listener for the switch
+      const mixSwitch = document.getElementById('mix-mode-switch');
+      if (mixSwitch) {
+        mixSwitch.onchange = function() {
+          if (state.isMixMode) {
+            // Switching to normal mode: pause and clear all mix audios
+            Object.values(state.mixAudios).forEach(audio => { if (audio) { audio.pause(); audio.currentTime = 0; } });
+            state.mixAudios = {};
+            state.mixVolumes = {};
+          } else {
+            // Switching to Mix Mode: pause and clear normal mode sound
+            if (audio) { audio.pause(); audio.currentTime = 0; }
+            state.currentSound = null;
+            state.isPlaying = false;
+          }
+          state.isMixMode = !state.isMixMode;
+          renderSoundLibrary();
+          renderSoundGrid();
+          updatePlayButton();
+        };
+      }
       sheetContent.innerHTML = '';
         if (state.isMixMode) {
             // Mix Mode: show all sounds in a single list, no categories
@@ -1294,42 +1334,59 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       enableControls();
     } else {
-        if (t.timerType !== 'endless' && t.timeLeft <= 0) resetTimer();
-        // Start new session when timer starts
-        stats.currentSessionStart = new Date();
-        stats.currentSessionType = t.mode;
-        t.timer = setInterval(() => {
-          if (t.timerType === 'endless') {
-            t.elapsedTime++;
+      if (t.timerType !== 'endless' && t.timeLeft <= 0) resetTimer();
+      // Start new session when timer starts
+      stats.currentSessionStart = new Date();
+      stats.currentSessionType = t.mode;
+      t.timer = setInterval(() => {
+        if (t.timerType === 'endless') {
+          t.elapsedTime++;
           updateDisplay();
         } else {
-            t.timeLeft--;
+          t.timeLeft--;
           updateDisplay();
-            if (t.timeLeft <= 0) {
-              clearInterval(t.timer);
-              t.isRunning = false;
-                    // End session when timer completes
-                    if (stats.currentSessionStart) {
-                        const sessionDuration = Math.floor((new Date() - stats.currentSessionStart) / 1000 / 60);
-                        updateStats(sessionDuration, t.mode);
-                        stats.currentSessionStart = null;
-                        stats.currentSessionType = null;
-                        stats.totalSessions++;
-                    }
-              // Play beep sound when timer ends (Pomodoro or Simple)
-              if (t.timerType === 'pomodoro' || t.timerType === 'simple') {
-                try { timerBeep.currentTime = 0; timerBeep.play(); } catch (e) { /* ignore */ }
+          if (t.timeLeft <= 0) {
+            clearInterval(t.timer);
+            t.isRunning = false;
+            // End session when timer completes
+            if (stats.currentSessionStart) {
+                const sessionDuration = Math.floor((new Date() - stats.currentSessionStart) / 1000 / 60);
+                updateStats(sessionDuration, t.mode);
+                stats.currentSessionStart = null;
+                stats.currentSessionType = null;
+                stats.totalSessions++;
+            }
+            // Play beep sound when timer ends (Pomodoro or Simple)
+            if (t.timerType === 'pomodoro' || t.timerType === 'simple') {
+              try { timerBeep.currentTime = 0; timerBeep.play(); } catch (e) { /* ignore */ }
+            }
+            // Stop all sounds if sleep timer ends
+            if (t.timerType === 'sleep') {
+              // Stop all sounds (mix mode and normal)
+              if (state.isMixMode) {
+                Object.values(state.mixAudios).forEach(audio => { if (audio) { audio.pause(); audio.currentTime = 0; } });
+                state.mixAudios = {};
+                state.mixVolumes = {};
+              } else {
+                audio.pause();
+                state.isPlaying = false;
+                state.currentSound = null;
               }
-              if (t.timerType === 'pomodoro' && t.mode === 'focus') {
+              updatePlayButton();
+              renderSoundGrid();
+              renderSoundLibrary();
+              showToast('Sleep timer ended. All sounds stopped.', 'success');
+            }
+            if (t.timerType === 'pomodoro' && t.mode === 'focus') {
               toggleMode('break');
-                toggleTimer();
+              toggleTimer();
             } else {
               enableControls();
             }
           }
         }
       }, 1000);
-        t.isRunning = true;
+      t.isRunning = true;
       disableControls();
     }
       updateDisplay();
@@ -1360,6 +1417,9 @@ document.addEventListener('DOMContentLoaded', function() {
       } else if (t.timerType === 'simple') {
         t.timeLeft = parseInt(localStorage.getItem('simpleTimerDuration'), 10) || 25 * 60;
         t.totalTime = t.timeLeft;
+    } else if (t.timerType === 'sleep') {
+      t.timeLeft = parseInt(localStorage.getItem('sleepTimerDuration'), 10) || 30 * 60;
+      t.totalTime = t.timeLeft;
     }
     updateDisplay();
     enableControls();
@@ -1423,6 +1483,10 @@ document.addEventListener('DOMContentLoaded', function() {
       } else if (t.timerType === 'endless') {
       modeSwitcher.classList.add('hidden');
         t.elapsedTime = 0;
+    } else if (t.timerType === 'sleep') {
+      modeSwitcher.classList.add('hidden');
+      t.timeLeft = parseInt(localStorage.getItem('sleepTimerDuration'), 10) || 30 * 60;
+      t.totalTime = t.timeLeft;
     }
     timerTypeDots.forEach(dot => {
         if (dot.dataset.timerType === t.timerType) {
@@ -1503,6 +1567,10 @@ document.addEventListener('DOMContentLoaded', function() {
       if (t.timerType === 'simple') {
         localStorage.setItem('simpleTimerDuration', t.timeLeft);
       }
+      // Save custom duration for sleep timer
+      if (t.timerType === 'sleep') {
+        localStorage.setItem('sleepTimerDuration', t.timeLeft);
+      }
     timeDisplay.innerHTML = '';
       timeDisplay.textContent = formatTime(t.timeLeft);
       t.isEditing = false;
@@ -1547,7 +1615,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   
     // --- Initialize ---
-    // On load, set timer to correct custom value for pomodoro mode and simple timer
+    // On load, set timer to correct custom value for pomodoro mode, simple timer, and sleep timer
     if (state.timer.timerType === 'pomodoro') {
       if (state.timer.mode === 'focus') {
         state.timer.timeLeft = parseInt(localStorage.getItem('pomodoroFocusDuration'), 10) || 25 * 60;
@@ -1557,8 +1625,10 @@ document.addEventListener('DOMContentLoaded', function() {
         state.timer.totalTime = state.timer.timeLeft;
       }
     } else if (state.timer.timerType === 'simple') {
-      // Load custom simple timer duration if set
       state.timer.timeLeft = parseInt(localStorage.getItem('simpleTimerDuration'), 10) || 25 * 60;
+      state.timer.totalTime = state.timer.timeLeft;
+    } else if (state.timer.timerType === 'sleep') {
+      state.timer.timeLeft = parseInt(localStorage.getItem('sleepTimerDuration'), 10) || 30 * 60;
       state.timer.totalTime = state.timer.timeLeft;
     }
     updateDisplay();
@@ -2286,6 +2356,34 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 300);
       });
     }
+
+    // Copy functionality for todo list
+    const copyBtn = document.querySelector('.copy-btn');
+    if (copyBtn) copyBtn.addEventListener('click', function() {
+        const taskList = document.getElementById('task-list');
+        if (!taskList) return;
+        const tasks = Array.from(taskList.querySelectorAll('.task-item'));
+        const lines = tasks.map(item => {
+            const text = item.querySelector('.task-text').textContent.trim();
+            if (!text) return null;
+            const circle = item.querySelector('.task-circle');
+            if (circle.classList.contains('completed')) {
+                return `✔ ${text}`;
+            } else {
+                return `☐ ${text}`;
+            }
+        }).filter(Boolean);
+        const todoText = lines.join('\n');
+        if (todoText) {
+            navigator.clipboard.writeText(todoText).then(() => {
+                showToast('Todo list copied to clipboard!', 'success');
+            }, () => {
+                showToast('Failed to copy todo list.', 'error');
+            });
+        } else {
+            showToast('No todo items to copy.', 'info');
+        }
+    });
 });
 
 // Define the handler function separately
@@ -2650,7 +2748,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Download functionality
     if (downloadBtn) downloadBtn.addEventListener('click', function() {
         // Clone the container to avoid modifying the original
-        const container = document.querySelector('.container');
+        const container = document.querySelector('.todo-container');
         const containerClone = container ? container.cloneNode(true) : null;
         if (!containerClone) return;
         // Hide buttons in the clone
@@ -2671,15 +2769,15 @@ document.addEventListener('DOMContentLoaded', function() {
         // Set fixed width for consistent image size
         containerClone.style.width = '500px';
         containerClone.style.minHeight = '300px';
+        // Apply invert filter to the clone
+        containerClone.style.filter = 'invert(1) hue-rotate(180deg)';
         downloadDiv.appendChild(containerClone);
         // Add to body temporarily
         document.body.appendChild(downloadDiv);
         // Handle the in-progress circles properly for the download
         const inProgressCircles = downloadDiv.querySelectorAll('.task-circle.in-progress');
         inProgressCircles.forEach(circle => {
-            // Remove the original styling
             circle.classList.remove('in-progress');
-            // Add explicit half-filled styling that works better for images
             const halfFill = document.createElement('div');
             halfFill.style.position = 'absolute';
             halfFill.style.width = '50%';
@@ -2700,14 +2798,14 @@ document.addEventListener('DOMContentLoaded', function() {
               width: 500, // Fixed width
               height: null, // Auto height based on content
               onclone: (clonedDoc) => {
-                  // Additional cleanup in cloned document if needed
                   const clonedButtons = clonedDoc.querySelector('#action-buttons');
                   if (clonedButtons) clonedButtons.remove();
+                  // Also apply the filter to the cloned element in the DOM used by html2canvas
+                  const clonedTodo = clonedDoc.querySelector('.todo-container');
+                  if (clonedTodo) clonedTodo.style.filter = 'invert(1) hue-rotate(180deg)';
               }
           }).then(canvas => {
-              // Download the image
               const link = document.createElement('a');
-              // Get date components for the filename
               const today = new Date();
               const dayNumber = today.getDate();
               const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

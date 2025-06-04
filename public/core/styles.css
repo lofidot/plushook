@@ -4465,9 +4465,9 @@
     gap: 10px;
 }
 .day-number {
-    font-size: 32px;
+    font-size: 40px;
     font-weight: 700;
-    margin-right: 10px;
+    margin-right: 5px;
     color: #fff;
 }
 .month-day {
@@ -4648,5 +4648,61 @@
     #action-buttons {
         gap: 8px;
     }
+  }
+  
+  /* iOS-style Mix Mode Switch */
+  .mix-switch-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    font-size: 1.1em;
+    gap: 0.5em;
+  }
+  .mix-switch-label input[type="checkbox"] {
+    display: none;
+  }
+  .mix-switch-slider {
+    position: relative;
+    width: 44px;
+    height: 26px;
+    background: #e4e4e4;
+    border-radius: 13px;
+    transition: background 0.2s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .mix-switch-label input[type="checkbox"]:checked + .mix-switch-slider {
+    background: #4cd964;
+  }
+  .mix-switch-slider:before {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    width: 20px;
+    height: 20px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  }
+  .mix-switch-label input[type="checkbox"]:checked + .mix-switch-slider:before {
+    transform: translateX(18px);
+  }
+  
+  /* Style for the copy button in the todo action buttons */
+  .copy-btn {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 0 8px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+  }
+  .copy-btn:hover {
+    color: #ffd700;
   }
   
