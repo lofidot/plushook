@@ -4391,24 +4391,24 @@ function initializePricingModal() {
   const actionBtn = document.getElementById('pricing-action-btn');
   const closeBtn = document.getElementById('close-pricing-modal');
   
-  // Plan pricing data with Creem.io product IDs
+  // Plan pricing data with Creem.io product IDs from environment variables
   const planPricing = {
     monthly: { 
       price: '10.99', 
       period: 'month',
-      productId: 'your_monthly_product_id', // Replace with actual Creem.io product ID
+      productId: process.env.CREEM_MONTHLY_PRODUCT_ID || import.meta.env.VITE_CREEM_MONTHLY_PRODUCT_ID,
       planName: 'Monthly Plan'
     },
     yearly: { 
       price: '100.99', 
       period: 'year',
-      productId: 'your_yearly_product_id', // Replace with actual Creem.io product ID
+      productId: process.env.CREEM_YEARLY_PRODUCT_ID || import.meta.env.VITE_CREEM_YEARLY_PRODUCT_ID,
       planName: 'Yearly Plan'
     },
     lifetime: { 
       price: '299.99', 
       period: 'one-time',
-      productId: 'your_lifetime_product_id', // Replace with actual Creem.io product ID
+      productId: process.env.CREEM_LIFETIME_PRODUCT_ID || import.meta.env.VITE_CREEM_LIFETIME_PRODUCT_ID,
       planName: 'Lifetime Plan'
     }
   };
@@ -4689,9 +4689,9 @@ function initializeAuthModal() {
 // Launch Creem.io checkout
 function launchCreemCheckout(email, selectedPlan) {
   try {
-    // Replace with your actual Creem.io configuration
+    // Creem.io configuration using environment variable
     const creemConfig = {
-      publicKey: 'your_creem_public_key', // Replace with your Creem.io public key
+      publicKey: process.env.CREEM_API_KEY || import.meta.env.VITE_CREEM_API_KEY, // Environment variable
       productId: selectedPlan.productId,
       customerEmail: email,
       amount: parseFloat(selectedPlan.price) * 100, // Convert to cents
