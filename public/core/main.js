@@ -4163,19 +4163,38 @@ function initializeTimerAndInsights() {
       initializeInsights();
     }
     // Initialize navigation dropdown functionality
-    initializeNavDropdowns();
+    try {
+      initializeNavDropdowns();
+      console.log('Navigation dropdowns initialized successfully');
+    } catch (error) {
+      console.error('Error initializing navigation dropdowns:', error);
+    }
   }, 100); // Small delay to ensure all elements are available
 }
 
 // Initialize navigation dropdown functionality
 function initializeNavDropdowns() {
+  console.log('Starting navigation dropdown initialization...');
+  
   const leftNavBtn = document.getElementById('left-nav-btn');
   const rightNavBtn = document.getElementById('right-nav-btn');
   const leftDropdownMenu = document.getElementById('left-dropdown-menu');
   const rightDropdownMenu = document.getElementById('right-dropdown-menu');
 
+  console.log('Nav elements found:', {
+    leftNavBtn: !!leftNavBtn,
+    rightNavBtn: !!rightNavBtn,
+    leftDropdownMenu: !!leftDropdownMenu,
+    rightDropdownMenu: !!rightDropdownMenu
+  });
+
   // Populate dropdown menus with content
-  populateDropdownMenus();
+  try {
+    populateDropdownMenus();
+    console.log('Dropdown menus populated successfully');
+  } catch (error) {
+    console.error('Error populating dropdown menus:', error);
+  }
 
   // Left dropdown (Plus+)
   if (leftNavBtn && leftDropdownMenu) {
@@ -4387,28 +4406,36 @@ function handleRightDropdownAction(action) {
 
 // Initialize pricing modal functionality
 function initializePricingModal() {
+  console.log('Initializing pricing modal...');
+  
   const pricingOptions = document.querySelectorAll('.pricing-option');
   const actionBtn = document.getElementById('pricing-action-btn');
   const closeBtn = document.getElementById('close-pricing-modal');
+  
+  console.log('Found elements:', { 
+    pricingOptions: pricingOptions.length, 
+    actionBtn: !!actionBtn, 
+    closeBtn: !!closeBtn 
+  });
   
   // Plan pricing data with Creem.io product IDs from environment variables
   const planPricing = {
     monthly: { 
       price: '10.99', 
       period: 'month',
-      productId: process.env.CREEM_MONTHLY_PRODUCT_ID || import.meta.env.VITE_CREEM_MONTHLY_PRODUCT_ID,
+      productId: 'monthly_product_id_placeholder', // Will be set from environment later
       planName: 'Monthly Plan'
     },
     yearly: { 
       price: '100.99', 
       period: 'year',
-      productId: process.env.CREEM_YEARLY_PRODUCT_ID || import.meta.env.VITE_CREEM_YEARLY_PRODUCT_ID,
+      productId: 'yearly_product_id_placeholder', // Will be set from environment later
       planName: 'Yearly Plan'
     },
     lifetime: { 
       price: '299.99', 
       period: 'one-time',
-      productId: process.env.CREEM_LIFETIME_PRODUCT_ID || import.meta.env.VITE_CREEM_LIFETIME_PRODUCT_ID,
+      productId: 'lifetime_product_id_placeholder', // Will be set from environment later
       planName: 'Lifetime Plan'
     }
   };
@@ -4691,7 +4718,7 @@ function launchCreemCheckout(email, selectedPlan) {
   try {
     // Creem.io configuration using environment variable
     const creemConfig = {
-      publicKey: process.env.CREEM_API_KEY || import.meta.env.VITE_CREEM_API_KEY, // Environment variable
+      publicKey: 'creem_api_key_placeholder', // Will be set from environment later
       productId: selectedPlan.productId,
       customerEmail: email,
       amount: parseFloat(selectedPlan.price) * 100, // Convert to cents
