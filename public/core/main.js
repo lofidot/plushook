@@ -1,8 +1,34 @@
 // --- Supabase Setup ---
-// Add this at the very top of main.js
-const SUPABASE_URL = 'https://ojeyqqzpmhapnwwupely.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qZXlxcXpwbWhhcG53d3VwZWx5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc1NDkwMDYsImV4cCI6MjA2MzEyNTAwNn0.8KrxB1P76kTtdaPxH8fINqCa6oB6xzA_BesvXpxsCF4';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Use the globally available supabase client from index.html
+const supabase = window.supabaseClient || window.supabase?.createClient(
+  'https://ojeyqqzpmhapnwwupely.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qZXlxcXpwbWhhcG53d3VwZWx5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc1NDkwMDYsImV4cCI6MjA2MzEyNTAwNn0.8KrxB1P76kTtdaPxH8fINqCa6oB6xzA_BesvXpxsCF4'
+);
+
+// Consolidated State
+const state = {
+  currentSound: null,
+  isPlaying: false,
+  isMixMode: false,
+  mixAudios: {},
+  mixVolumes: {},
+  hideUI: localStorage.getItem('hideUI') === 'true',
+  useSoundBackground: true,
+  customBackground: null,
+  timer: {
+    mode: 'focus',
+    timerType: 'pomodoro', // pomodoro, simple, endless
+    timeLeft: 25 * 60, // 25 minutes in seconds
+    totalTime: 25 * 60,
+    isRunning: false,
+    isEditing: false,
+    timer: null,
+    elapsedTime: 0, // For endless timer
+    pomodoroCycles: parseInt(localStorage.getItem('pomodoroCycles'), 10) || 4,
+    currentCycle: parseInt(localStorage.getItem('pomodoroCurrentCycle'), 10) || 1,
+    longBreakDuration: parseInt(localStorage.getItem('pomodoroLongBreakDuration'), 10) || 15 * 60
+  }
+};
 
 // --- User State ---
 let user = null;
@@ -54,46 +80,67 @@ document.addEventListener('DOMContentLoaded', function() {
     // Call preload function
     preloadImages();
 
-    // State
-    const state = {
-      currentSound: null,
-      isPlaying: false,
-      isMixMode: false,
-      mixAudios: {},
-      mixVolumes: {},
-        hideUI: localStorage.getItem('hideUI') === 'true',
-        useSoundBackground: true,
-        customBackground: null,
-        timer: {
-          mode: 'focus',
-          timerType: 'pomodoro', // pomodoro, simple, endless
-          timeLeft: 25 * 60, // 25 minutes in seconds
-          totalTime: 25 * 60,
-          isRunning: false,
-          isEditing: false,
-          timer: null,
-          elapsedTime: 0 // For endless timer
-        }
-    };
     
     // Audio element
-    const audio = new Audio();
+    let audio = new Audio();
     audio.loop = true;
 
-    // Beep sound for timer end
-    const timerBeep = new Audio('https://api.substack.com/feed/podcast/159247735/d47b8fa79d5b4c3e0171d2d1b0f50e48.mp3');
-    timerBeep.volume = 1.0;
 
     // Fallback sounds (original sounds)
     const fallbackSounds = [
+          {
+            id: "white-noise",
+            name: "White Noise",
+            url: "https://cdn.jsdelivr.net/gh/lofidot/moodist@main/public/sounds/focus/white-noise.mp3",
+            imageUrl: "https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif",
+            thumbnailUrl: "https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif",
+            category: "Focus",
+            tags: ["featured"]
+          },
+          {
+            id: "brown-noise",
+            name: "Brown Noise",
+            url: "https://cdn.jsdelivr.net/gh/lofidot/moodist@main/public/sounds/focus/brown-noise.mp3",
+            imageUrl: "https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif",
+            thumbnailUrl: "https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif",
+            category: "Focus",
+            tags: ["featured"]
+          },
           {
             id: "heavy-rain",
             name: "Heavy Rain",
             url: "https://cdn.jsdelivr.net/gh/lofidot/moodist@main/public/sounds/rain/heavy-rain.mp3",
             imageUrl: "https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif",
-        thumbnailUrl: "https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif",
-        category: "Nature",
-        tags: ["featured"]
+            thumbnailUrl: "https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif",
+            category: "Nature",
+            tags: ["featured"]
+          },
+          {
+            id: "light-rain",
+            name: "Light Rain",
+            url: "https://cdn.jsdelivr.net/gh/lofidot/moodist@main/public/sounds/rain/light-rain.mp3",
+            imageUrl: "https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif",
+            thumbnailUrl: "https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif",
+            category: "Nature",
+            tags: ["featured"]
+          },
+          {
+            id: "coffee-shop",
+            name: "Coffee Shop",
+            url: "https://cdn.jsdelivr.net/gh/lofidot/moodist@main/public/sounds/ambient/coffee-shop.mp3",
+            imageUrl: "https://i.pinimg.com/originals/e5/18/e8/e518e8a24b9c04a887bd4432289a5e88.gif",
+            thumbnailUrl: "https://i.pinimg.com/originals/e5/18/e8/e518e8a24b9c04a887bd4432289a5e88.gif",
+            category: "Ambient",
+            tags: ["featured"]
+          },
+          {
+            id: "fireplace",
+            name: "Fireplace",
+            url: "https://cdn.jsdelivr.net/gh/lofidot/moodist@main/public/sounds/ambient/fireplace.mp3",
+            imageUrl: "https://i.pinimg.com/originals/c5/4e/8f/c54e8f5b82a0b0c6ff9d8ccb3f5d66fe.gif",
+            thumbnailUrl: "https://i.pinimg.com/originals/c5/4e/8f/c54e8f5b82a0b0c6ff9d8ccb3f5d66fe.gif",
+            category: "Ambient",
+            tags: ["featured"]
           },
           {
         id: "traffic",
@@ -351,16 +398,41 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- Fetch Sounds from Supabase ---
     async function getSoundsFromSupabase() {
+      console.log('Fetching sounds from Supabase...');
+      
       const { data, error } = await supabase
         .from('sounds')
         .select('*')
         .order('created_at', { ascending: false });
+      
       if (error) {
         console.error('Error fetching sounds from Supabase:', error);
-          return fallbackSounds;
+        console.log('Falling back to fallback sounds due to error');
+        return fallbackSounds;
+      }
+      
+      // Validate data structure
+      if (!data || data.length === 0) {
+        console.warn('No sounds found in Supabase, using fallback sounds');
+        return fallbackSounds;
+      }
+      
+      // Validate required fields for each sound
+      const validatedSounds = data.filter(sound => {
+        if (!sound.id || !sound.name || !sound.url) {
+          console.warn('Invalid sound data, missing required fields:', sound);
+          return false;
         }
-      // Optionally validate data here
-      return data;
+        return true;
+      });
+      
+      if (validatedSounds.length === 0) {
+        console.warn('No valid sounds found in Supabase data, using fallback sounds');
+        return fallbackSounds;
+      }
+      
+      console.log(`Successfully loaded ${validatedSounds.length} sounds from Supabase`);
+      return validatedSounds;
     }
 
     // --- Fetch Images (Themes) from Supabase ---
@@ -383,12 +455,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load sounds from Supabase or use fallbacks
     async function loadSounds() {
       try {
+        console.log('Attempting to load sounds from Supabase...');
         sounds = await getSoundsFromSupabase();
+        console.log('Loaded sounds from Supabase:', sounds.length, 'sounds');
+        console.log('First few sound IDs:', sounds.slice(0, 5).map(s => s.id));
         renderSoundGrid();
         renderSoundLibrary();
       } catch (error) {
         console.error('Error initializing sounds:', error);
+        console.log('Falling back to fallbackSounds...');
         sounds = fallbackSounds;
+        console.log('Using fallback sounds:', sounds.length, 'sounds');
+        console.log('Fallback sound IDs:', sounds.map(s => s.id));
         renderSoundGrid();
         renderSoundLibrary();
       }
@@ -409,50 +487,55 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
 
-    // DOM Elements with error handling
-    const getElement = (id) => {
+    // DOM Elements with graceful error handling
+    const getElement = (id, required = true) => {
         const element = document.getElementById(id);
         if (!element) {
-            console.error(`Element with id '${id}' not found`);
-            throw new Error(`Required element '${id}' is missing`);
+            if (required) {
+                console.error(`Required element with id '${id}' not found`);
+            } else {
+                console.warn(`Optional element with id '${id}' not found`);
+            }
         }
         return element;
     };
 
+    // Safe element getter that returns null instead of throwing
+    const safeGetElement = (id) => {
+        return getElement(id, false);
+    };
+
+    // Critical elements - app will show error if these are missing
     const app = getElement('app');
-    const backgroundOverlay = getElement('background-overlay');
-    const soundGrid = getElement('sound-grid');
-    const playButton = getElement('play-btn');
-    const playIcon = getElement('play-icon');
-    const pauseIcon = getElement('pause-icon');
-    const hideUIButton = getElement('hide-ui-btn');
-    const themeButton = getElement('theme-btn');
-    const themeModal = getElement('theme-modal');
-    const closeModalButton = getElement('close-modal');
-    const customBgUrlInput = getElement('custom-bg-url');
-    const applyBgButton = getElement('apply-bg-btn');
-    const soundLibraryBtn = getElement('sound-library-btn');
-    const soundLibrary = getElement('sound-library');
-    const closeLibraryBtn = getElement('close-library');
+    if (!app) {
+        console.error('Critical error: App container not found. Cannot initialize application.');
+        document.body.innerHTML = '<div style="padding: 20px; color: red; text-align: center;">Error: Application container not found. Please check the HTML structure.</div>';
+        return;
+    }
+
+    // Core elements with graceful fallbacks
+    const backgroundOverlay = safeGetElement('background-overlay');
+    const soundGrid = safeGetElement('sound-grid');
+    const playButton = safeGetElement('play-btn');
+    const playIcon = safeGetElement('play-icon');
+    const pauseIcon = safeGetElement('pause-icon');
+    const hideUIButton = safeGetElement('hide-ui-btn');
+    const themeButton = safeGetElement('theme-btn');
+    const themeModal = safeGetElement('theme-modal');
+    const closeModalButton = safeGetElement('close-modal');
+    const customBgUrlInput = safeGetElement('custom-bg-url');
+    const applyBgButton = safeGetElement('apply-bg-btn');
+    const fileDropZone = safeGetElement('file-drop-zone');
+    const themeFileInput = safeGetElement('theme-file-input');
+    const applyUploadButton = safeGetElement('apply-upload-btn');
+    const soundLibraryBtn = safeGetElement('sound-library-btn');
+    const soundLibrary = safeGetElement('sound-library');
+    const closeLibraryBtn = safeGetElement('close-library');
 
     // Settings Modal elements
-    const settingsBtn = getElement('settings-btn');
-    const settingsModal = getElement('settings-modal');
-    const closeSettingsModalBtn = getElement('close-settings-modal');
+    const settingsModal = safeGetElement('settings-modal');
+    const closeSettingsModalBtn = safeGetElement('close-settings-modal');
 
-    // Timer Toggle Functionality
-    const timerToggleBtn = document.getElementById('timer-toggle-btn');
-    const timerContainer = document.querySelector('.timer-container');
-    
-    // Load saved timer visibility state
-    const timerVisible = localStorage.getItem('timerVisible') === 'true';
-    if (timerVisible) {
-        timerContainer.classList.add('visible');
-    }
-    
-    timerToggleBtn.addEventListener('click', () => {
-        timerContainer.classList.toggle('visible');
-    });
 
     // Store the original document title
     const originalTitle = document.title;
@@ -461,47 +544,125 @@ document.addEventListener('DOMContentLoaded', function() {
     function playSound() {
       if (!state.currentSound) return;
       
-        // Only set the source if it's different from the current one
-        if (!audio.src || audio.src !== state.currentSound.url) {
-            audio.src = state.currentSound.url;
+      try {
+        // Properly cleanup previous audio to prevent memory leaks
+        if (audio) {
+          audio.pause();
+          audio.currentTime = 0;
+          // Remove all event listeners
+          audio.removeEventListener('canplay', audio.canplayHandler);
+          audio.removeEventListener('playing', audio.playingHandler);
+          audio.removeEventListener('pause', audio.pauseHandler);
+          audio.removeEventListener('error', audio.errorHandler);
+          audio.src = '';
+          audio.load(); // Force cleanup
         }
         
-        audio.play()
-        .then(() => {
+        // Create new audio instance
+        audio = new Audio();
+        audio.src = state.currentSound.url;
+        audio.loop = true;
+        
+        // Set up event listeners with proper references for cleanup
+        audio.canplayHandler = () => {
+          console.log('Audio can play, starting playback');
+        };
+        
+        audio.playingHandler = () => {
+          console.log('Audio is now playing');
           state.isPlaying = true;
           updatePlayButton();
-          updateBackground();
-          renderSoundGrid();
           updateSoundLibraryIcons();
-          backgroundOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-        })
-        .catch(error => {
-          console.error('Error playing audio:', error);
-          showToast('Could not play audio. Please try again.', 'error');
+        };
+        
+        audio.pauseHandler = () => {
+          console.log('Audio paused');
           state.isPlaying = false;
+          updatePlayButton();
+          updateSoundLibraryIcons();
+        };
+        
+        audio.errorHandler = (e) => {
+          console.error('Error loading sound:', e);
+          state.isPlaying = false;
+          updatePlayButton();
+          updateSoundLibraryIcons();
+        };
+        
+        audio.addEventListener('canplay', audio.canplayHandler);
+        audio.addEventListener('playing', audio.playingHandler);
+        audio.addEventListener('pause', audio.pauseHandler);
+        audio.addEventListener('error', audio.errorHandler);
+        
+        // Start playback
+        console.log('Starting audio playback for:', state.currentSound.name);
+        audio.play().then(() => {
+          console.log('Audio play() promise resolved');
+        }).catch(e => {
+          console.error('Playback error:', e);
+          state.isPlaying = false;
+          updatePlayButton();
+          updateSoundLibraryIcons();
         });
+        
+      } catch (e) {
+        console.error('Sound error:', e);
+        state.isPlaying = false;
+        updatePlayButton();
+        updateSoundLibraryIcons();
+      }
     }
+
     
     function pauseSound() {
+      if (audio) {
         audio.pause();
+      }
       state.isPlaying = false;
       updatePlayButton();
       updateSoundLibraryIcons();
-      backgroundOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-      renderSoundGrid();
+      if (backgroundOverlay) {
+        backgroundOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+      }
+      if (typeof renderSoundGrid === 'function') {
+        renderSoundGrid();
+      }
+    }
+    
+    // Add cleanup function for proper audio disposal
+    function cleanupAudio() {
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+        // Remove all event listeners
+        if (audio.canplayHandler) audio.removeEventListener('canplay', audio.canplayHandler);
+        if (audio.playingHandler) audio.removeEventListener('playing', audio.playingHandler);
+        if (audio.pauseHandler) audio.removeEventListener('pause', audio.pauseHandler);
+        if (audio.errorHandler) audio.removeEventListener('error', audio.errorHandler);
+        audio.src = '';
+        audio.load(); // Force cleanup
+        audio = null;
+      }
     }
     
     function updatePlayButton() {
+        if (!playButton || !playIcon || !pauseIcon) {
+            console.warn('Play button elements not found, skipping update');
+            return;
+        }
+        
         if (state.isMixMode) {
             // In Mix Mode, show pause icon if any mix sound is playing
             const anyPlaying = Object.values(state.mixAudios).some(audio => audio && !audio.paused);
             playButton.classList.toggle('active', anyPlaying);
+            playButton.classList.toggle('playing', anyPlaying);
             playIcon.classList.toggle('hidden', anyPlaying);
             pauseIcon.classList.toggle('hidden', !anyPlaying);
         } else {
-        playButton.classList.toggle('active', state.isPlaying);
-        playIcon.classList.toggle('hidden', state.isPlaying);
-        pauseIcon.classList.toggle('hidden', !state.isPlaying);
+            playButton.classList.toggle('active', state.isPlaying);
+            playButton.classList.toggle('playing', state.isPlaying);
+            playIcon.classList.toggle('hidden', state.isPlaying);
+            pauseIcon.classList.toggle('hidden', !state.isPlaying);
         }
     }
 
@@ -513,7 +674,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let bgUrl = null;
         if (state.useSoundBackground && state.currentSound) {
-            bgUrl = state.currentSound.image_url;
+            // Handle both imageUrl (fallback) and image_url (Supabase) formats
+            bgUrl = state.currentSound.image_url || state.currentSound.imageUrl;
         } else if (state.customBackground) {
             bgUrl = state.customBackground;
         }
@@ -539,7 +701,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 videoBg.style.zIndex = '0';
                 videoBg.style.pointerEvents = 'none';
                 videoBg.style.background = 'black';
-                app.insertBefore(videoBg, backgroundOverlay);
+                if (backgroundOverlay) {
+                    app.insertBefore(videoBg, backgroundOverlay);
+                } else {
+                    app.appendChild(videoBg);
+                }
             }
             
             // Only update source if it's different
@@ -572,10 +738,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Update overlay opacity
-        if (state.hideUI) {
-            backgroundOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
-        } else {
-            backgroundOverlay.style.backgroundColor = state.isPlaying ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.7)';
+        if (backgroundOverlay) {
+            if (state.hideUI) {
+                backgroundOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
+            } else {
+                backgroundOverlay.style.backgroundColor = state.isPlaying ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.7)';
+            }
         }
     }
 
@@ -587,15 +755,24 @@ document.addEventListener('DOMContentLoaded', function() {
         const soundGrid = document.getElementById('sound-grid');
         const timerContainer = document.querySelector('.timer-container');
         const navigationSection = document.getElementById('navigation-section');
-        const unhideButton = document.createElement('button');
+        const navbar = document.querySelector('.navbar');
         
         if (state.hideUI) {
+            // Add hide-ui class to body for CSS targeting
+            document.body.classList.add('hide-ui');
+            
             // Hide elements
             if (controlsContainer) controlsContainer.classList.add('hidden');
             if (soundGrid) soundGrid.classList.add('hidden');
             if (navigationSection) navigationSection.classList.add('hidden');
+            if (navbar) navbar.classList.add('hidden');
+            
+            // Remove any existing unhide button first
+            const existingUnhideBtn = document.getElementById('unhide-btn');
+            if (existingUnhideBtn) existingUnhideBtn.remove();
             
             // Create and show unhide button
+            const unhideButton = document.createElement('button');
             unhideButton.id = 'unhide-btn';
             unhideButton.className = 'unhide-button';
             unhideButton.innerHTML = `
@@ -607,13 +784,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     <path d="M12 5C16.7915 5 20.0334 8.62459 21.4938 10.7509C22.0118 11.5037 22.0118 12.4963 21.4938 13.2491C21.1159 13.8163 20.5485 14.5695 19.8071 15.3454" stroke="currentColor" stroke-width="2"/>
                 </svg>
             `;
-            unhideButton.addEventListener('click', toggleUIVisibility);
+            
+            // Use a separate function to avoid recursive calls
+            unhideButton.addEventListener('click', showUI);
             document.body.appendChild(unhideButton);
         } else {
+            // Remove hide-ui class from body
+            document.body.classList.remove('hide-ui');
+            
             // Show elements
             if (controlsContainer) controlsContainer.classList.remove('hidden');
             if (soundGrid) soundGrid.classList.remove('hidden');
             if (navigationSection) navigationSection.classList.remove('hidden');
+            if (navbar) navbar.classList.remove('hidden');
             
             // Remove unhide button
             const existingUnhideBtn = document.getElementById('unhide-btn');
@@ -624,6 +807,31 @@ document.addEventListener('DOMContentLoaded', function() {
         if (timerContainer && timerContainer.classList.contains('visible')) {
             timerContainer.classList.remove('hidden');
         }
+        
+        localStorage.setItem('hideUI', state.hideUI);
+        updateBackground();
+    }
+    
+    function showUI() {
+        state.hideUI = false;
+        
+        // Remove hide-ui class from body
+        document.body.classList.remove('hide-ui');
+        
+        // Show elements
+        const controlsContainer = document.querySelector('.controls-container');
+        const soundGrid = document.getElementById('sound-grid');
+        const navigationSection = document.getElementById('navigation-section');
+        const navbar = document.querySelector('.navbar');
+        
+        if (controlsContainer) controlsContainer.classList.remove('hidden');
+        if (soundGrid) soundGrid.classList.remove('hidden');
+        if (navigationSection) navigationSection.classList.remove('hidden');
+        if (navbar) navbar.classList.remove('hidden');
+        
+        // Remove unhide button
+        const existingUnhideBtn = document.getElementById('unhide-btn');
+        if (existingUnhideBtn) existingUnhideBtn.remove();
         
         localStorage.setItem('hideUI', state.hideUI);
         updateBackground();
@@ -645,18 +853,38 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function selectSound(sound) {
-        const wasPlaying = state.isPlaying && state.currentSound && state.currentSound.id === sound.id;
-        state.currentSound = sound;
-        
-        if (wasPlaying) {
+      if (!sound) {
+        console.warn('selectSound called with no sound');
+        return;
+      }
+      
+      console.log('Selecting sound:', sound.name, sound.id);
+      
+      // If clicking the same sound that's already playing, pause it
+      if (state.currentSound && state.currentSound.id === sound.id && state.isPlaying) {
+        console.log('Pausing currently playing sound');
         pauseSound();
-      } else {
-        playSound();
-        }
-        
+        return;
+      }
+      
+      // Select new sound and start playing
+      state.currentSound = sound;
+      console.log('Set current sound to:', state.currentSound.name);
+      
+      if (state.useSoundBackground) {
         updateBackground();
-        renderSoundGrid();
-        updateSoundLibraryIcons();
+        renderThemeGrid(); // Re-render theme grid to update Default card
+      }
+      
+      // Always start playing when a sound is selected
+      cleanupAudio();
+      state.isPlaying = true;
+      console.log('Starting playback of:', sound.name);
+      playSound();
+      
+      updatePlayButton();
+      renderSoundGrid();
+      renderSoundLibrary();
     }
 
     function handleImageLoad(img) {
@@ -665,6 +893,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function renderSoundGrid() {
+        if (!soundGrid) {
+            console.warn('Sound grid element not found, skipping render');
+            return;
+        }
+        
         if (state.isMixMode) {
             // Mix Mode: show only currently playing mix sounds, or nothing if none
             const playingMixSoundIds = Object.keys(state.mixAudios).filter(id => state.mixAudios[id] && !state.mixAudios[id].paused);
@@ -741,7 +974,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 soundCard.innerHTML = `
                 <button class="sound-button${isActive ? ' active' : ''}${isCurrentlyPlaying ? ' playing' : ''}" data-sound-id="${sound.id}" ${isLocked ? '' : ''}>
                     <img loading="eager" decoding="async" src="${imageUrlToUse}" alt="${sound.name}" width="100" height="100" style="will-change: auto;">
-                        <div class="sound-indicator"></div>
+                    <div class="sound-overlay"></div>
+                    <div class="sound-indicator"></div>
                     ${isLocked ? '<div class="plus-badge plus-badge-bottom">Plus</div>' : ''}
                     </button>
                     <span class="sound-name">${sound.name}</span>
@@ -762,18 +996,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 btn.classList.toggle('playing', isCurrentlyPlaying);
             }
             });
-    }
-
-    function showToast(message, type = 'info') {
-        // Only log to console, do not show in UI
-        if (type === 'error') {
-            console.error(message);
-        } else if (type === 'success') {
-            console.log('Success:', message);
-        } else {
-            console.log(message);
-        }
-        // (No DOM manipulation for toast messages)
     }
 
     function closeAllBottomSheets() {
@@ -820,6 +1042,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function openThemeModal() {
+      if (themeModal.classList.contains('active')) {
+        closeThemeModal();
+        return;
+      }
       closeAllBottomSheets();
       themeModal.classList.remove('hidden');
       void themeModal.offsetWidth;
@@ -845,7 +1071,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function closeThemeModal() {
       themeModal.classList.remove('active');
-            themeModal.classList.add('hidden');
+      setTimeout(() => themeModal.classList.add('hidden'), 300);
     }
 
     function closeSoundLibrary() {
@@ -868,83 +1094,201 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function setCustomBackground(url, isPreset = false) {
-        if (!url) {
-            showToast('Please enter a valid image URL', 'error');
-        return;
+      // Helper function to detect video URLs
+      function isVideoUrl(url) {
+        return /\.(mp4|webm|ogg)(\?.*)?$/i.test(url);
       }
-        if (isPreset) {
-            state.customBackground = url;
-            state.useSoundBackground = false;
-            updateBackground();
-            showToast('Background updated successfully');
-            localStorage.setItem('customBackground', url);
-            localStorage.setItem('useSoundBackground', 'false');
-            localStorage.setItem('selectedTheme', url);
-            closeThemeModal();
-            return;
-        }
-        // Test if the image URL is valid
-        const img = new Image();
-        img.onload = () => {
-            state.customBackground = url;
-            state.useSoundBackground = false;
+      
+      // Show loading state
+      const loader = document.createElement('div');
+      loader.className = 'background-loader';
+      loader.innerHTML = '<div class="spinner"></div>';
+      document.body.appendChild(loader);
+      
+      if (isVideoUrl(url)) {
+        // Handle video URLs
+        const video = document.createElement('video');
+        video.muted = true;
+        video.playsInline = true;
+        
+        video.onloadedmetadata = () => {
+          // Remove loader
+          loader.remove();
+          
+          // Store the background and call updateBackground to apply it
+          localStorage.setItem('customBackground', url);
+          localStorage.setItem('isPresetBackground', isPreset.toString());
+          
+          // Apply the video background using the existing updateBackground function
           updateBackground();
-            showToast('Background updated successfully');
-            localStorage.setItem('customBackground', url);
-            localStorage.setItem('useSoundBackground', 'false');
-            localStorage.setItem('selectedTheme', url);
-            closeThemeModal();
+          
+          showToast('Video background updated successfully', 'success');
         };
+        
+        video.onerror = () => {
+          // Remove loader
+          loader.remove();
+          
+          // Show error
+          showToast('Failed to load video background', 'error');
+          
+          // Reset to default
+          localStorage.removeItem('customBackground');
+          localStorage.removeItem('isPresetBackground');
+        };
+        
+        // Start loading
+        video.src = url;
+      } else {
+        // Handle image URLs (existing logic)
+        const img = new Image();
+        
+        img.onload = () => {
+          // Remove loader
+          loader.remove();
+          
+          // Store the background and use updateBackground to apply it properly
+          state.customBackground = url;
+          state.useSoundBackground = false;
+          localStorage.setItem('customBackground', url);
+          localStorage.setItem('isPresetBackground', isPreset.toString());
+          localStorage.setItem('useSoundBackground', 'false');
+          
+          // Apply the background using the existing updateBackground function
+          updateBackground();
+          
+          showToast('Background updated successfully', 'success');
+        };
+        
         img.onerror = () => {
-            showToast('Invalid image URL. Please try another.', 'error');
+          // Remove loader
+          loader.remove();
+          
+          // Show error
+          showToast('Failed to load background image', 'error');
+          
+          // Reset to default
+          state.customBackground = null;
+          state.useSoundBackground = true;
+          localStorage.removeItem('customBackground');
+          localStorage.removeItem('isPresetBackground');
+          localStorage.setItem('useSoundBackground', 'true');
+          updateBackground();
         };
+        
+        // Start loading
         img.src = url;
+      }
     }
 
+    // Add CSS for loader
+    const backgroundLoaderStyle = document.createElement('style');
+    backgroundLoaderStyle.textContent = `
+      .background-loader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+      }
+      
+      .spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid #f3f3f3;
+        border-top: 5px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(backgroundLoaderStyle);
+
     function renderSoundLibrary() {
-      const sheetHeader = soundLibrary.querySelector('.sheet-header');
+      if (!soundLibrary) {
+        console.warn('Sound library element not found, skipping render');
+        return;
+      }
+      
       const sheetContent = soundLibrary.querySelector('.sheet-content');
-      // Remove any existing mix mode switch
+      // Remove any existing mix mode switch/tabs
       const oldSwitch = document.getElementById('mix-mode-switch');
       if (oldSwitch) oldSwitch.remove();
-      // Create iOS-style switch container
+      // Remove any existing mix-mode-switch-container from anywhere
+      const oldContainer = document.querySelector('#mix-mode-switch-container');
+      if (oldContainer) oldContainer.remove();
+      // Get the existing mix-mode-switch-container (now in sheet-content)
       let switchContainer = document.getElementById('mix-mode-switch-container');
       if (!switchContainer) {
+        // Create container in the correct location (sheet-content)
         switchContainer = document.createElement('div');
         switchContainer.id = 'mix-mode-switch-container';
-        sheetHeader.insertBefore(switchContainer, sheetHeader.firstChild);
+        const soundHeaderFixed = soundLibrary.querySelector('.sound-header-fixed');
+        if (soundHeaderFixed) {
+          // Insert at the beginning of the fixed header (before close button)
+          soundHeaderFixed.insertBefore(switchContainer, soundHeaderFixed.firstChild);
+        } else {
+          // Fallback: create sound-header-fixed if it doesn't exist
+          const headerFixed = document.createElement('div');
+          headerFixed.className = 'sound-header-fixed';
+          headerFixed.appendChild(switchContainer);
+          sheetContent.insertBefore(headerFixed, sheetContent.firstChild);
+        }
       }
-      // Build iOS-style switch markup
+      // Build tab-based mode switcher markup
       switchContainer.innerHTML = `
-        <label class="mix-switch-label">
-          <span style="margin-right:12px;font-weight:500;">Mix Mode</span>
-          <input type="checkbox" id="mix-mode-switch" ${state.isMixMode ? 'checked' : ''}>
-          <span class="mix-switch-slider"></span>
-        </label>
+        <div class="mix-mode-switcher">
+          <button class="mix-mode-btn ${!state.isMixMode ? 'active' : ''}" data-mode="sounds">Sounds</button>
+          <button class="mix-mode-btn ${state.isMixMode ? 'active' : ''}" data-mode="mix">Mix</button>
+        </div>
       `;
-      // Add event listener for the switch
-      const mixSwitch = document.getElementById('mix-mode-switch');
-      if (mixSwitch) {
-        mixSwitch.onchange = function() {
-          if (state.isMixMode) {
-            // Switching to normal mode: pause and clear all mix audios
-            Object.values(state.mixAudios).forEach(audio => { if (audio) { audio.pause(); audio.currentTime = 0; } });
-            state.mixAudios = {};
-            state.mixVolumes = {};
-          } else {
-            // Switching to Mix Mode: pause and clear normal mode sound
-            if (audio) { audio.pause(); audio.currentTime = 0; }
-            state.currentSound = null;
-            state.isPlaying = false;
+      // Add event listeners for the tabs
+      const modeBtns = switchContainer.querySelectorAll('.mix-mode-btn');
+      modeBtns.forEach(btn => {
+        btn.onclick = function() {
+          const targetMode = this.dataset.mode;
+          const shouldBeMixMode = targetMode === 'mix';
+          
+          if (state.isMixMode !== shouldBeMixMode) {
+            if (state.isMixMode) {
+              // Switching to normal mode: pause and clear all mix audios
+              Object.values(state.mixAudios).forEach(audio => { if (audio) { audio.pause(); audio.currentTime = 0; } });
+              state.mixAudios = {};
+              state.mixVolumes = {};
+            } else {
+              // Switching to Mix Mode: pause and clear normal mode sound
+              if (audio) { audio.pause(); audio.currentTime = 0; }
+              state.currentSound = null;
+              state.isPlaying = false;
+            }
+            state.isMixMode = shouldBeMixMode;
+            renderSoundLibrary();
+            renderSoundGrid();
+            updatePlayButton();
+            // Instantly update theme modal if open
+            if (typeof themeModal !== 'undefined' && themeModal && !themeModal.classList.contains('hidden')) {
+              renderThemeGrid();
+            }
           }
-          state.isMixMode = !state.isMixMode;
-          renderSoundLibrary();
-          renderSoundGrid();
-          updatePlayButton();
         };
-      }
+      });
+      // Preserve the fixed header and clear only the content below it
+      const fixedHeader = sheetContent.querySelector('.sound-header-fixed');
       sheetContent.innerHTML = '';
-        if (state.isMixMode) {
+      if (fixedHeader) {
+        sheetContent.appendChild(fixedHeader);
+      }
+      
+      if (state.isMixMode) {
             // Mix Mode: show all sounds in a single list, no categories
             soundLibrary.classList.add('mix-mode'); // Add mix mode class
             soundLibrary.classList.remove('normal-mode-cards');
@@ -964,17 +1308,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 let item = soundList.querySelector(`.library-sound-item[data-sound-id="${sound.id}"]`);
                 if (!item) {
                     // Create new item
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'library-sound-wrapper';
+                    
                     item = document.createElement('div');
                     item.className = `library-sound-item${isActive ? ' active' : ''}`;
                     item.dataset.soundId = sound.id;
                     item.innerHTML = `
                         <img src="${imageUrlToUse}" alt="${sound.name}" class="card-image">
-                        <div class="card-overlay"></div>
                         ${sound.icon ? `<div class="mix-mode-icon"><img src="${sound.icon}" alt="${sound.name} icon"></div>` : ''}
-                        <span class="library-sound-name">${sound.name}</span>
+                        <div class="thumbnail-blur"></div>
                         ${isLocked ? '<div class="plus-badge plus-badge-bottom">Plus</div>' : ''}
                     `;
-                    soundList.appendChild(item);
+                    
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'library-sound-name';
+                    nameSpan.textContent = sound.name;
+                    
+                    wrapper.appendChild(item);
+                    wrapper.appendChild(nameSpan);
+                    soundList.appendChild(wrapper);
                 }
                 // Update classes
                 if (isActive) {
@@ -983,8 +1336,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     item.classList.remove('active');
                 }
                 // Slider: Add/Remove slider based on active state
-                let slider = item.querySelector('.mix-volume-slider');
-                if (!isLocked && isActive && !slider) {
+                const wrapper = item.closest('.library-sound-wrapper');
+                let slider = wrapper ? wrapper.querySelector('.mix-volume-slider') : null;
+                if (!isLocked && isActive && !slider && wrapper) {
                     slider = document.createElement('input');
                     slider.type = 'range';
                     slider.min = '0';
@@ -996,12 +1350,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     slider.addEventListener('input', (e) => {
                       const volume = parseInt(e.target.value, 10);
                       state.mixVolumes[sound.id] = volume;
-                      if (state.mixAudios[sound.id]) {
-                        state.mixAudios[sound.id].volume = volume / 100;
+                      if (state.mixAudios[sound.id] && typeof state.mixAudios[sound.id].volume !== 'undefined') {
+                        try {
+                          state.mixAudios[sound.id].volume = volume / 100;
+                        } catch (error) {
+                          console.error('Error setting mix audio volume:', error);
+                        }
                       }
                     });
-                    // Append slider to the item
-                    item.appendChild(slider);
+                    // Append slider to the wrapper (below the sound name)
+                    wrapper.appendChild(slider);
                 } else if ((!isActive || isLocked) && slider) {
                     slider.remove();
                 }
@@ -1020,32 +1378,67 @@ document.addEventListener('DOMContentLoaded', function() {
                 const sound = sounds.find(s => s.id === soundId);
                 const isLocked = sound.plus_only && !isPlusUser;
                 if (!isLocked) {
-                    const slider = item.querySelector('.mix-volume-slider');
+                    const wrapper = item.closest('.library-sound-wrapper');
+                    const slider = wrapper ? wrapper.querySelector('.mix-volume-slider') : null;
                     // Handler to toggle play/pause
                     const playPauseHandler = (e) => {
                       e.stopPropagation();
-                      if (!state.mixAudios[soundId]) {
-                        const initialVolume = state.mixVolumes[soundId] !== undefined ? state.mixVolumes[soundId] : 50;
-                        const audio = new Audio(sound.url);
-                        audio.loop = true;
-                        audio.volume = initialVolume / 100;
-                        state.mixVolumes[soundId] = initialVolume;
-                        state.mixAudios[soundId] = audio;
-                        audio.play();
-                      } else {
-                        const audio = state.mixAudios[soundId];
-                        if (audio.paused) {
-                          audio.play();
+                      try {
+                        if (!state.mixAudios[soundId]) {
+                          const initialVolume = state.mixVolumes[soundId] !== undefined ? state.mixVolumes[soundId] : 50;
+                          const audio = new Audio(sound.url);
+                          audio.loop = true;
+                          audio.volume = initialVolume / 100;
+                          state.mixVolumes[soundId] = initialVolume;
+                          state.mixAudios[soundId] = audio;
+                          
+                          // Add error handling for audio loading
+                          audio.onerror = (error) => {
+                            console.error('Mix audio loading error:', error);
+                            delete state.mixAudios[soundId];
+                            delete state.mixVolumes[soundId];
+                            renderSoundLibrary();
+                            renderSoundGrid();
+                            updatePlayButton();
+                          };
+                          
+                          audio.play().catch(error => {
+                            console.error('Mix audio playback error:', error);
+                            delete state.mixAudios[soundId];
+                            delete state.mixVolumes[soundId];
+                            renderSoundLibrary();
+                            renderSoundGrid();
+                            updatePlayButton();
+                          });
                         } else {
-                          audio.pause();
-                          // Remove from mix state when paused (deselected)
+                          const audio = state.mixAudios[soundId];
+                          if (audio && audio.paused) {
+                            audio.play().catch(error => {
+                              console.error('Mix audio resume error:', error);
+                              delete state.mixAudios[soundId];
+                              delete state.mixVolumes[soundId];
+                            });
+                          } else if (audio) {
+                            audio.pause();
+                            // Remove from mix state when paused (deselected)
+                            delete state.mixAudios[soundId];
+                            delete state.mixVolumes[soundId];
+                          }
+                        }
+                        renderSoundLibrary();
+                        renderSoundGrid();
+                        updatePlayButton();
+                      } catch (error) {
+                        console.error('Mix mode handler error:', error);
+                        // Cleanup on error
+                        if (state.mixAudios[soundId]) {
                           delete state.mixAudios[soundId];
                           delete state.mixVolumes[soundId];
                         }
+                        renderSoundLibrary();
+                        renderSoundGrid();
+                        updatePlayButton();
                       }
-                      renderSoundLibrary();
-                      renderSoundGrid();
-                      updatePlayButton();
                     };
                     item.onclick = null;
                     item.addEventListener('click', playPauseHandler);
@@ -1054,8 +1447,12 @@ document.addEventListener('DOMContentLoaded', function() {
                       slider.addEventListener('input', (e) => {
                         const volume = parseInt(e.target.value, 10);
                         state.mixVolumes[soundId] = volume;
-                        if (state.mixAudios[soundId]) {
-                          state.mixAudios[soundId].volume = volume / 100;
+                        if (state.mixAudios[soundId] && typeof state.mixAudios[soundId].volume !== 'undefined') {
+                          try {
+                            state.mixAudios[soundId].volume = volume / 100;
+                          } catch (error) {
+                            console.error('Error setting mix audio volume:', error);
+                          }
                         }
                       });
                     }
@@ -1083,11 +1480,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const imageUrlToUse = sound.thumbnail_url || sound.image_url;
                 const isLocked = sound.plus_only && !isPlusUser;
                 return `
-                  <div class="library-sound-item ${isActive ? 'active' : ''}" data-sound-id="${sound.id}">
-                                        <img src="${imageUrlToUse}" alt="${sound.name}" class="card-image">
-                                        <div class="card-overlay"></div> <!-- Add overlay for gradient -->
-                                        <span class="library-sound-name">${sound.name}</span>
+                  <div class="library-sound-wrapper">
+                    <div class="library-sound-item ${isActive ? 'active' : ''}" data-sound-id="${sound.id}">
+                      <img src="${imageUrlToUse}" alt="${sound.name}" class="card-image">
+                      <div class="thumbnail-blur"></div>
                       ${isLocked ? '<div class="plus-badge plus-badge-bottom">Plus</div>' : ''}
+                    </div>
+                    <span class="library-sound-name">${sound.name}</span>
                   </div>
                 `;
               }).join('')}
@@ -1100,7 +1499,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const header = categorySection.querySelector('h3');
                 if (!header) return;
                 // const category = header.textContent.trim(); // Not needed for event binding
-        categorySection.querySelectorAll('.library-sound-item').forEach(item => {
+        categorySection.querySelectorAll('.library-sound-wrapper .library-sound-item').forEach(item => {
             const soundId = item.dataset.soundId;
             const sound = sounds.find(s => s.id === soundId);
           const isLocked = sound.plus_only && !isPlusUser;
@@ -1119,7 +1518,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateSoundLibraryIcons() {
-      const soundItems = document.querySelectorAll('.library-sound-item');
+      const soundItems = document.querySelectorAll('.library-sound-wrapper .library-sound-item');
       soundItems.forEach(item => {
         const soundId = item.dataset.soundId;
         const isActive = state.currentSound && state.currentSound.id === soundId && state.isPlaying;
@@ -1140,32 +1539,108 @@ document.addEventListener('DOMContentLoaded', function() {
       updateSoundLibraryIcons();
     }
 
+    // Add to global state
+    if (!window.state) window.state = {};
+    if (!('selectedThemeCategory' in state)) state.selectedThemeCategory = 'All';
+
     function renderThemeGrid() {
       const presetGrid = document.querySelector('.preset-grid');
       if (!presetGrid) return;
-      presetGrid.innerHTML = themes.map(theme => {
+      // Find the parent .theme-section to inject the category bar above the grid
+      const themeSection = presetGrid.closest('.theme-section');
+      let categoryBar = themeSection.querySelector('.theme-category-bar');
+      if (!categoryBar) {
+        categoryBar = document.createElement('div');
+        categoryBar.className = 'theme-category-bar';
+        themeSection.insertBefore(categoryBar, presetGrid);
+      }
+      // Collect all unique categories from themes
+      let allCategories = [];
+      themes.forEach(theme => {
+        if (Array.isArray(theme.categories)) {
+          allCategories.push(...theme.categories);
+        }
+      });
+      allCategories = Array.from(new Set(allCategories.filter(Boolean)));
+      allCategories.sort();
+      // Always show 'All' first
+      const categories = ['All', ...allCategories];
+      // Render category buttons
+      categoryBar.innerHTML = categories.map(cat => `
+        <button class="theme-category-btn${state.selectedThemeCategory === cat ? ' active' : ''}" data-category="${cat}">${cat}</button>
+      `).join('');
+      // Add click listeners
+      categoryBar.querySelectorAll('.theme-category-btn').forEach(btn => {
+        btn.onclick = () => {
+          state.selectedThemeCategory = btn.dataset.category;
+          renderThemeGrid();
+        };
+      });
+
+      // Get current sound's image for Default card
+      const currentSoundImage = state.currentSound ? state.currentSound.thumbnail_url : 'https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif';
+      // Add Default card first
+      const defaultCard = `
+        <div class="preset-theme-wrapper">
+          <div class="preset-theme${state.useSoundBackground ? ' active' : ''}" data-theme="default">
+            <div class="preset-preview" style="background-image: url('${currentSoundImage}')"></div>
+            <div class="thumbnail-blur"></div>
+            <div class="theme-description">Sound's background</div>
+          </div>
+          <span class="theme-name">Default</span>
+        </div>
+      `;
+      // Filter themes by selected category
+      let filteredThemes = themes;
+      if (state.selectedThemeCategory && state.selectedThemeCategory !== 'All') {
+        filteredThemes = themes.filter(theme => Array.isArray(theme.categories) && theme.categories.includes(state.selectedThemeCategory));
+      }
+      // Then add the rest of the themes
+      const themeCards = filteredThemes.map(theme => {
         const isActive = !state.useSoundBackground && state.customBackground === theme.url;
         const isLocked = theme.plus_only && !isPlusUser;
         return `
-          <div class="preset-theme${isActive ? ' active' : ''}" data-theme="${theme.url}">
-            <img src="${theme.thumbnail_url}" alt="${theme.name}" class="card-image"> <!-- Image covers card -->
-            <div class="card-overlay"></div> <!-- Add overlay for gradient -->
-            <span class="theme-name">${theme.name}</span> <!-- Name positioned at bottom -->
+          <div class="preset-theme-wrapper">
+            <div class="preset-theme${isActive ? ' active' : ''}" data-theme="${theme.url}">
+              <img src="${theme.thumbnail_url}" alt="${theme.name}" class="card-image">
+              <div class="thumbnail-blur"></div>
               ${isLocked ? '<div class="plus-badge plus-badge-top">Plus</div>' : ''}
-        </div>
+            </div>
+            <span class="theme-name">${theme.name}</span>
+          </div>
         `;
       }).join('');
-      // Attach event listeners for preset themes after rendering
-      document.querySelectorAll('.preset-theme').forEach(button => {
+      // Hide default card if in mix mode
+      presetGrid.innerHTML = state.isMixMode ? themeCards : defaultCard + themeCards;
+      // Attach event listeners for all theme cards
+      document.querySelectorAll('.preset-theme-wrapper .preset-theme').forEach(button => {
         const themeUrl = button.dataset.theme;
+        // Special handling for Default card
+        if (themeUrl === 'default') {
+          button.addEventListener('click', () => {
+            state.useSoundBackground = true;
+            state.customBackground = null;
+            renderThemeGrid();
+            updateBackground();
+            localStorage.setItem('useSoundBackground', 'true');
+            localStorage.removeItem('customBackground');
+            showToast('Using sound backgrounds');
+          });
+          return;
+        }
+        // Handle other theme cards
         const theme = themes.find(t => t.url === themeUrl);
         const isLocked = theme.plus_only && !isPlusUser;
         if (!isLocked) {
           button.addEventListener('click', () => {
+            button.classList.add('loading');
             state.customBackground = themeUrl;
             state.useSoundBackground = false;
             renderThemeGrid();
             setCustomBackground(themeUrl, true);
+            setTimeout(() => {
+              button.classList.remove('loading');
+            }, 3000);
           });
         } else {
           button.addEventListener('click', openPlusPopup);
@@ -1173,51 +1648,91 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
 
-    // Event Listeners
-    playButton.addEventListener('click', () => {
-      if (state.isMixMode) {
-        // Mix Mode: pause/resume all active mix sounds
-        const anyPlaying = Object.values(state.mixAudios).some(audio => audio && !audio.paused);
-        if (anyPlaying) {
-          Object.values(state.mixAudios).forEach(audio => { if (audio && !audio.paused) audio.pause(); });
+    // Theme Tab Switching Functionality
+    function initializeThemeTabs() {
+      const themeModeButtons = document.querySelectorAll('.theme-mode-btn');
+      const customSection = document.getElementById('custom-section');
+      const themesSection = document.getElementById('themes-section');
+      
+      if (!themeModeButtons.length || !customSection || !themesSection) {
+        console.warn('Theme tab elements not found');
+        return;
+      }
+      
+      themeModeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          const mode = button.dataset.mode;
+          
+          // Update active tab
+          themeModeButtons.forEach(btn => btn.classList.remove('active'));
+          button.classList.add('active');
+          
+          // Show/hide sections
+          if (mode === 'custom') {
+            customSection.style.display = 'block';
+            themesSection.style.display = 'none';
+          } else {
+            customSection.style.display = 'none';
+            themesSection.style.display = 'block';
+          }
+        });
+      });
+    }
+    
+    // Initialize theme tabs when theme modal is opened
+    
+    if (closeModalButton && themeModal) {
+      closeModalButton.addEventListener('click', () => {
+        themeModal.classList.remove('active');
+        setTimeout(() => themeModal.classList.add('hidden'), 300);
+      });
+    }
+
+    // Event Listeners with null safety checks
+    if (playButton) {
+      playButton.addEventListener('click', () => {
+        if (state.isMixMode) {
+          // Mix Mode: pause/resume all active mix sounds
+          const anyPlaying = Object.values(state.mixAudios).some(audio => audio && !audio.paused);
+          if (anyPlaying) {
+            Object.values(state.mixAudios).forEach(audio => { if (audio && !audio.paused) audio.pause(); });
+          } else {
+            Object.values(state.mixAudios).forEach(audio => { if (audio && audio.paused) audio.play(); });
+          }
+          if (typeof renderSoundGrid === 'function') renderSoundGrid();
+          if (typeof renderSoundLibrary === 'function') renderSoundLibrary();
+          updatePlayButton();
+          return;
+        }
+        if (!state.currentSound) {
+          // Select and play the first featured sound if none is selected
+          const firstFeaturedSound = sounds.find(sound => Array.isArray(sound.tags) && sound.tags.includes('featured'));
+          if (firstFeaturedSound) {
+            selectSound(firstFeaturedSound);
+            return;
+          }
+          // Fallback: select the first sound in the list
+          if (sounds.length > 0) {
+            selectSound(sounds[0]);
+            return;
+          }
+          console.error('No sounds available to play');
+          return;
+        }
+        if (state.isPlaying) {
+          pauseSound();
         } else {
-          Object.values(state.mixAudios).forEach(audio => { if (audio && audio.paused) audio.play(); });
+          playSound();
         }
-        renderSoundGrid();
-        renderSoundLibrary();
-        updatePlayButton();
-        return;
-      }
-      if (!state.currentSound) {
-        // Select and play the first featured sound if none is selected
-        const firstFeaturedSound = sounds.find(sound => Array.isArray(sound.tags) && sound.tags.includes('featured'));
-        if (firstFeaturedSound) {
-          selectSound(firstFeaturedSound);
-          return;
-        }
-        // Fallback: select the first sound in the list
-        if (sounds.length > 0) {
-          selectSound(sounds[0]);
-          return;
-        }
-        showToast('No sounds available to play', 'error');
-        return;
-      }
-      state.isPlaying = !state.isPlaying;
-      if (state.isPlaying) {
-        playSound();
-      } else {
-        pauseSound();
-      }
-    });
-    hideUIButton.addEventListener('click', toggleUIVisibility);
-    themeButton.addEventListener('click', openThemeModal);
-    closeModalButton.addEventListener('click', closeThemeModal);
-    soundLibraryBtn.addEventListener('click', toggleSoundLibrary);
-    closeLibraryBtn.addEventListener('click', closeSoundLibrary);
+      });
+    }
+    if (hideUIButton) hideUIButton.addEventListener('click', toggleUIVisibility);
+    if (themeButton) themeButton.addEventListener('click', openThemeModal);
+    if (closeModalButton) closeModalButton.addEventListener('click', closeThemeModal);
+    if (soundLibraryBtn) soundLibraryBtn.addEventListener('click', toggleSoundLibrary);
+    if (closeLibraryBtn) closeLibraryBtn.addEventListener('click', closeSoundLibrary);
 
     // Settings modal event listeners
-    if (settingsBtn) settingsBtn.addEventListener('click', openSettingsModal);
     if (closeSettingsModalBtn) closeSettingsModalBtn.addEventListener('click', closeSettingsModal);
 
     // Handle preset theme buttons
@@ -1230,408 +1745,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // --- Timer State ---
-    // Load custom durations from localStorage or use defaults
-    let pomodoroFocusDuration = parseInt(localStorage.getItem('pomodoroFocusDuration'), 10) || 25 * 60;
-    let pomodoroBreakDuration = parseInt(localStorage.getItem('pomodoroBreakDuration'), 10) || 5 * 60;
-    // Set initial timeLeft/totalTime based on mode and timerType
-    let timeLeft = state.timer.timerType === 'pomodoro'
-      ? (state.timer.mode === 'focus' ? pomodoroFocusDuration : pomodoroBreakDuration)
-      : 25 * 60;
-    let totalTime = timeLeft;
 
-    // --- DOM Elements ---
-  const timerDisplay = document.getElementById('timerDisplay');
-  const timeDisplay = document.getElementById('time');
-  const progressBar = document.getElementById('progress');
-  const startBtn = document.getElementById('startBtn');
-  const pauseBtn = document.getElementById('pauseBtn');
-  const restartBtn = document.getElementById('restartBtn');
-  const decreaseBtn = document.getElementById('decrease');
-  const increaseBtn = document.getElementById('increase');
-  const modeButtons = document.querySelectorAll('.mode-btn');
-  const modeSwitcher = document.getElementById('modeSwitcher');
-  const timerTypeDots = document.querySelectorAll('.timer-type-dot');
   
-    // --- Format/Parse Time ---
-  function formatTime(seconds) {
-    const hours = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    if (hours > 0) {
-      return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    } else {
-      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-  }
-  function parseTime(timeString) {
-    const parts = timeString.split(':').map(Number);
-    if (parts.length === 3) {
-      return parts[0] * 3600 + parts[1] * 60 + parts[2];
-    } else if (parts.length === 2) {
-      return parts[0] * 60 + parts[1];
-    } else if (parts.length === 1) {
-      return parts[0] * 60;
-    }
-    return 0;
-  }
   
-    // --- Display Update ---
-  function updateDisplay() {
-      const t = state.timer;
-      if (t.timerType === 'endless') {
-        timeDisplay.textContent = formatTime(t.elapsedTime);
-      progressBar.style.width = '0%';
-        } else {
-        timeDisplay.textContent = formatTime(t.timeLeft);
-        const progressPercent = ((t.totalTime - t.timeLeft) / t.totalTime) * 100;
-      progressBar.style.width = `${progressPercent}%`;
-        }
-      if (t.isRunning) {
-      startBtn.style.display = 'none';
-      pauseBtn.classList.add('visible');
-      restartBtn.classList.add('visible');
-    } else {
-      startBtn.style.display = 'flex';
-      pauseBtn.classList.remove('visible');
-      restartBtn.classList.remove('visible');
-    }
-    // Hide + and - buttons in endless timer
-    if (t.timerType === 'endless') {
-      decreaseBtn.style.display = 'none';
-      increaseBtn.style.display = 'none';
-    } else {
-      decreaseBtn.style.display = '';
-      increaseBtn.style.display = '';
-    }
-    // Update browser tab title with timer
-    if (t.isRunning) {
-      let timeString;
-      if (t.timerType === 'endless') {
-        timeString = formatTime(t.elapsedTime);
-      } else {
-        timeString = formatTime(t.timeLeft);
-      }
-      document.title = `${timeString} | ${originalTitle}`;
-    } else {
-      document.title = originalTitle;
-    }
-  }
   
-    // --- Timer Logic ---
-  function toggleTimer() {
-      const t = state.timer;
-      if (t.isRunning) {
-        clearInterval(t.timer);
-        t.isRunning = false;
-        // End session when timer is stopped
-        if (stats.currentSessionStart) {
-            const sessionDuration = Math.floor((new Date() - stats.currentSessionStart) / 1000 / 60);
-            updateStats(sessionDuration, t.mode);
-            stats.currentSessionStart = null;
-            stats.currentSessionType = null;
-            stats.totalSessions++;
-        }
-      enableControls();
-    } else {
-      if (t.timerType !== 'endless' && t.timeLeft <= 0) resetTimer();
-      // Start new session when timer starts
-      stats.currentSessionStart = new Date();
-      stats.currentSessionType = t.mode;
-      t.timer = setInterval(() => {
-        if (t.timerType === 'endless') {
-          t.elapsedTime++;
-          updateDisplay();
-        } else {
-          t.timeLeft--;
-          updateDisplay();
-          if (t.timeLeft <= 0) {
-            clearInterval(t.timer);
-            t.isRunning = false;
-            // End session when timer completes
-            if (stats.currentSessionStart) {
-                const sessionDuration = Math.floor((new Date() - stats.currentSessionStart) / 1000 / 60);
-                updateStats(sessionDuration, t.mode);
-                stats.currentSessionStart = null;
-                stats.currentSessionType = null;
-                stats.totalSessions++;
-            }
-            // Play beep sound when timer ends (Pomodoro or Simple)
-            if (t.timerType === 'pomodoro' || t.timerType === 'simple') {
-              try { timerBeep.currentTime = 0; timerBeep.play(); } catch (e) { /* ignore */ }
-            }
-            // Stop all sounds if sleep timer ends
-            if (t.timerType === 'sleep') {
-              // Stop all sounds (mix mode and normal)
-              if (state.isMixMode) {
-                Object.values(state.mixAudios).forEach(audio => { if (audio) { audio.pause(); audio.currentTime = 0; } });
-                state.mixAudios = {};
-                state.mixVolumes = {};
-              } else {
-                audio.pause();
-                state.isPlaying = false;
-                state.currentSound = null;
-              }
-              updatePlayButton();
-              renderSoundGrid();
-              renderSoundLibrary();
-              showToast('Sleep timer ended. All sounds stopped.', 'success');
-            }
-            if (t.timerType === 'pomodoro' && t.mode === 'focus') {
-              toggleMode('break');
-              toggleTimer();
-            } else {
-              enableControls();
-            }
-          }
-        }
-      }, 1000);
-      t.isRunning = true;
-      disableControls();
-    }
-      updateDisplay();
-  }
 
-  function resetTimer() {
-      const t = state.timer;
-      clearInterval(t.timer);
-      t.isRunning = false;
-    // End session when timer is reset
-    if (stats.currentSessionStart) {
-        const sessionDuration = Math.floor((new Date() - stats.currentSessionStart) / 1000 / 60);
-        updateStats(sessionDuration, t.mode);
-        stats.currentSessionStart = null;
-        stats.currentSessionType = null;
-        stats.totalSessions++;
-    }
-      if (t.timerType === 'endless') {
-        t.elapsedTime = 0;
-      } else if (t.timerType === 'pomodoro') {
-        if (t.mode === 'focus') {
-          t.timeLeft = parseInt(localStorage.getItem('pomodoroFocusDuration'), 10) || 25 * 60;
-          t.totalTime = t.timeLeft;
-      } else {
-          t.timeLeft = parseInt(localStorage.getItem('pomodoroBreakDuration'), 10) || 5 * 60;
-          t.totalTime = t.timeLeft;
-      }
-      } else if (t.timerType === 'simple') {
-        t.timeLeft = parseInt(localStorage.getItem('simpleTimerDuration'), 10) || 25 * 60;
-        t.totalTime = t.timeLeft;
-    } else if (t.timerType === 'sleep') {
-      t.timeLeft = parseInt(localStorage.getItem('sleepTimerDuration'), 10) || 30 * 60;
-      t.totalTime = t.timeLeft;
-    }
-    updateDisplay();
-    enableControls();
-  }
 
-  function toggleMode(newMode) {
-      const t = state.timer;
-      if (newMode === t.mode || t.timerType !== 'pomodoro') return;
-    // End session when mode changes
-    if (stats.currentSessionStart) {
-        const sessionDuration = Math.floor((new Date() - stats.currentSessionStart) / 1000 / 60);
-        updateStats(sessionDuration, t.mode);
-        stats.currentSessionStart = null;
-        stats.currentSessionType = null;
-        stats.totalSessions++;
-    }
-      t.mode = newMode;
-      clearInterval(t.timer);
-      t.isRunning = false;
-      if (t.mode === 'focus') {
-        t.timeLeft = parseInt(localStorage.getItem('pomodoroFocusDuration'), 10) || 25 * 60;
-        t.totalTime = t.timeLeft;
-    } else {
-        t.timeLeft = parseInt(localStorage.getItem('pomodoroBreakDuration'), 10) || 5 * 60;
-        t.totalTime = t.timeLeft;
-    }
-    updateDisplay();
-    enableControls();
-    modeButtons.forEach(btn => {
-        if (btn.dataset.mode === t.mode) {
-        btn.classList.add('active');
-      } else {
-        btn.classList.remove('active');
-      }
-    });
-  }
 
-  function changeTimerType(newType) {
-      const t = state.timer;
-      if (newType === t.timerType) return;
-    // End session when timer type changes
-    if (stats.currentSessionStart) {
-        const sessionDuration = Math.floor((new Date() - stats.currentSessionStart) / 1000 / 60);
-        updateStats(sessionDuration, t.mode);
-        stats.currentSessionStart = null;
-        stats.currentSessionType = null;
-        stats.totalSessions++;
-    }
-      t.timerType = newType;
-      clearInterval(t.timer);
-      t.isRunning = false;
-      if (t.timerType === 'pomodoro') {
-      modeSwitcher.classList.remove('hidden');
-        t.mode = 'focus';
-        t.timeLeft = parseInt(localStorage.getItem('pomodoroFocusDuration'), 10) || 25 * 60;
-        t.totalTime = t.timeLeft;
-      } else if (t.timerType === 'simple') {
-      modeSwitcher.classList.add('hidden');
-        t.timeLeft = parseInt(localStorage.getItem('simpleTimerDuration'), 10) || 25 * 60;
-        t.totalTime = t.timeLeft;
-      } else if (t.timerType === 'endless') {
-      modeSwitcher.classList.add('hidden');
-        t.elapsedTime = 0;
-    } else if (t.timerType === 'sleep') {
-      modeSwitcher.classList.add('hidden');
-      t.timeLeft = parseInt(localStorage.getItem('sleepTimerDuration'), 10) || 30 * 60;
-      t.totalTime = t.timeLeft;
-    }
-    timerTypeDots.forEach(dot => {
-        if (dot.dataset.timerType === t.timerType) {
-        dot.classList.add('active');
-      } else {
-        dot.classList.remove('active');
-      }
-    });
-    modeButtons.forEach(btn => {
-      if (btn.dataset.mode === 'focus') {
-        btn.classList.add('active');
-      } else {
-        btn.classList.remove('active');
-      }
-    });
-    updateDisplay();
-    enableControls();
-  }
 
-  function adjustTime(amount) {
-      const t = state.timer;
-      if (t.isRunning || t.timerType === 'endless') return;
-      t.timeLeft = Math.max(0, t.timeLeft + amount);
-      t.totalTime = t.timeLeft;
-    updateDisplay();
-  }
 
-  function handleTimeClick() {
-      const t = state.timer;
-      if (t.isRunning || t.isEditing || t.timerType === 'endless') return;
-      t.isEditing = true;
-    const currentTimeText = timeDisplay.textContent;
-    timeDisplay.innerHTML = `<input type="text" class="time-input" value="${currentTimeText}" maxlength="8">`;
-    const timeInput = document.querySelector('.time-input');
-    timeInput.focus();
-    timeInput.select();
-    timeInput.addEventListener('blur', finishEditing);
-    timeInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') finishEditing();
-    });
-    timeInput.addEventListener('input', (e) => {
-      e.target.value = e.target.value.replace(/[^0-9:]/g, '');
-    });
-  }
 
-  function finishEditing() {
-      const t = state.timer;
-    const timeInput = document.querySelector('.time-input');
-    if (!timeInput) return;
-    let timeValue = timeInput.value;
-    if (!timeValue.includes(':')) {
-      const minutes = parseInt(timeValue, 10) || 0;
-      const hours = Math.floor(minutes / 60);
-      const mins = minutes % 60;
-      if (hours > 0) {
-        timeValue = `${hours}:${mins.toString().padStart(2, '0')}:00`;
-      } else {
-        timeValue = `${mins.toString().padStart(2, '0')}:00`;
-      }
-    } else if (timeValue.split(':').length === 2) {
-      const [mins, secs] = timeValue.split(':');
-      timeValue = `${mins.padStart(2, '0')}:${secs.padStart(2, '0')}`;
-    } else if (timeValue.split(':').length === 3) {
-      const [hours, mins, secs] = timeValue.split(':');
-      timeValue = `${hours}:${mins.padStart(2, '0')}:${secs.padStart(2, '0')}`;
-    }
-      t.timeLeft = parseTime(timeValue);
-      t.totalTime = t.timeLeft;
-      // Save custom durations for Pomodoro focus/break
-      if (t.timerType === 'pomodoro') {
-        if (t.mode === 'focus') {
-          localStorage.setItem('pomodoroFocusDuration', t.timeLeft);
-        } else if (t.mode === 'break') {
-          localStorage.setItem('pomodoroBreakDuration', t.timeLeft);
-        }
-      }
-      // Save custom duration for simple timer
-      if (t.timerType === 'simple') {
-        localStorage.setItem('simpleTimerDuration', t.timeLeft);
-      }
-      // Save custom duration for sleep timer
-      if (t.timerType === 'sleep') {
-        localStorage.setItem('sleepTimerDuration', t.timeLeft);
-      }
-    timeDisplay.innerHTML = '';
-      timeDisplay.textContent = formatTime(t.timeLeft);
-      t.isEditing = false;
-  }
 
-  function disableControls() {
-    decreaseBtn.classList.add('disabled');
-    increaseBtn.classList.add('disabled');
-    modeButtons.forEach(btn => btn.classList.add('disabled'));
-    timerDisplay.classList.add('disabled');
-    timerTypeDots.forEach(dot => dot.parentElement.classList.add('disabled'));
-  }
 
-  function enableControls() {
-    decreaseBtn.classList.remove('disabled');
-    increaseBtn.classList.remove('disabled');
-    modeButtons.forEach(btn => btn.classList.remove('disabled'));
-    timerDisplay.classList.remove('disabled');
-    timerTypeDots.forEach(dot => dot.parentElement.classList.remove('disabled'));
-  }
   
-    // --- Event Listeners ---
-  startBtn.addEventListener('click', toggleTimer);
-  pauseBtn.addEventListener('click', toggleTimer);
-    restartBtn.addEventListener('click', resetTimer);
-    decreaseBtn.addEventListener('click', () => adjustTime(-60));
-    increaseBtn.addEventListener('click', () => adjustTime(60));
-  timeDisplay.addEventListener('click', handleTimeClick);
-  modeButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-        if (!state.timer.isRunning && state.timer.timerType === 'pomodoro') {
-        toggleMode(btn.dataset.mode);
-      }
-    });
-  });
-  timerTypeDots.forEach(dot => {
-    dot.addEventListener('click', () => {
-        if (!state.timer.isRunning && dot.dataset.timerType !== state.timer.timerType) {
-        changeTimerType(dot.dataset.timerType);
-      }
-    });
-  });
   
-    // --- Initialize ---
-    // On load, set timer to correct custom value for pomodoro mode, simple timer, and sleep timer
-    if (state.timer.timerType === 'pomodoro') {
-      if (state.timer.mode === 'focus') {
-        state.timer.timeLeft = parseInt(localStorage.getItem('pomodoroFocusDuration'), 10) || 25 * 60;
-        state.timer.totalTime = state.timer.timeLeft;
-      } else if (state.timer.mode === 'break') {
-        state.timer.timeLeft = parseInt(localStorage.getItem('pomodoroBreakDuration'), 10) || 5 * 60;
-        state.timer.totalTime = state.timer.timeLeft;
-      }
-    } else if (state.timer.timerType === 'simple') {
-      state.timer.timeLeft = parseInt(localStorage.getItem('simpleTimerDuration'), 10) || 25 * 60;
-      state.timer.totalTime = state.timer.timeLeft;
-    } else if (state.timer.timerType === 'sleep') {
-      state.timer.timeLeft = parseInt(localStorage.getItem('sleepTimerDuration'), 10) || 30 * 60;
-      state.timer.totalTime = state.timer.timeLeft;
-    }
-    updateDisplay();
 
     // Theme Modal Tab System
     const themeTabs = document.querySelectorAll('.theme-tab-btn');
@@ -1667,22 +1794,6 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
 
-    // Attach event listeners for preset themes (once, after DOMContentLoaded or after renderThemeGrid)
-    function attachPresetThemeListeners() {
-      document.querySelectorAll('.preset-theme').forEach(button => {
-        button.replaceWith(button.cloneNode(true)); // Remove all listeners
-      });
-      document.querySelectorAll('.preset-theme').forEach(button => {
-        button.addEventListener('click', () => {
-          const themeUrl = button.dataset.theme;
-          state.customBackground = themeUrl;
-          state.useSoundBackground = false;
-          renderThemeGrid(); // Re-render to update active state immediately
-          setCustomBackground(themeUrl, true); // true = isPreset
-        });
-      });
-    }
-    attachPresetThemeListeners();
 
     // Attach event listener for custom background apply button (once)
     if (applyBgButton && customBgUrlInput) {
@@ -1690,6 +1801,116 @@ document.addEventListener('DOMContentLoaded', function() {
       applyBgButton.addEventListener('click', () => {
         setCustomBackground(customBgUrlInput.value.trim());
       });
+    }
+
+    // File upload functionality
+    let selectedFile = null;
+
+    if (fileDropZone && themeFileInput && applyUploadButton) {
+      // Handle click on drop zone or browse link
+      fileDropZone.addEventListener('click', () => {
+        themeFileInput.click();
+      });
+
+      // Handle browse link specifically
+      const browseLink = fileDropZone.querySelector('.browse-link');
+      if (browseLink) {
+        browseLink.addEventListener('click', (e) => {
+          e.stopPropagation();
+          themeFileInput.click();
+        });
+      }
+
+      // Handle drag and drop
+      fileDropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        fileDropZone.classList.add('drag-over');
+      });
+
+      fileDropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        if (!fileDropZone.contains(e.relatedTarget)) {
+          fileDropZone.classList.remove('drag-over');
+        }
+      });
+
+      fileDropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileDropZone.classList.remove('drag-over');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          handleFileSelection(files[0]);
+        }
+      });
+
+      // Handle file input change
+      themeFileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+          handleFileSelection(e.target.files[0]);
+        }
+      });
+
+      // Handle apply upload button
+      applyUploadButton.addEventListener('click', () => {
+        if (selectedFile) {
+          applyUploadedTheme();
+        }
+      });
+    }
+
+    function handleFileSelection(file) {
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic'];
+      if (!validTypes.includes(file.type)) {
+        alert('Please select a valid image file (JPG, PNG, WEBP, HEIC)');
+        return;
+      }
+
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File size must be less than 10MB');
+        return;
+      }
+
+      selectedFile = file;
+      
+      // Update UI to show selected file
+      const dropText = fileDropZone.querySelector('.drop-text');
+      if (dropText) {
+        dropText.innerHTML = `Selected: <span style="color: #1d69ff">${file.name}</span>`;
+      }
+      
+      // Enable apply button
+      applyUploadButton.disabled = false;
+    }
+
+    function applyUploadedTheme() {
+      if (!selectedFile) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const imageUrl = e.target.result;
+        setCustomBackground(imageUrl);
+        
+        // Reset UI
+        resetFileUploadUI();
+        
+        // Show success message
+        showToast('Custom theme applied successfully!');
+      };
+      reader.readAsDataURL(selectedFile);
+    }
+
+    function resetFileUploadUI() {
+      selectedFile = null;
+      themeFileInput.value = '';
+      applyUploadButton.disabled = true;
+      
+      const dropText = fileDropZone.querySelector('.drop-text');
+      if (dropText) {
+        dropText.innerHTML = 'Drop file here or <span class="browse-link">browse</span>';
+      }
     }
 
     // Ensure the sound grid is rendered
@@ -1743,6 +1964,16 @@ document.addEventListener('DOMContentLoaded', function() {
       await fetchUserProfile();
       await loadSounds();
       await loadThemes();
+      
+      // Initialize statistics
+      if (typeof initializeStatistics === 'function') {
+        initializeStatistics();
+      }
+      
+      // Initialize timer and insights
+      if (typeof initializeTimerAndInsights === 'function') {
+        initializeTimerAndInsights();
+      }
     })();
 
     // Add minimal CSS for Plus badge (rectangle at bottom center)
@@ -1848,27 +2079,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Add to your existing DOMContentLoaded event listener
-    document.addEventListener('DOMContentLoaded', () => {
-        // ... existing initialization code ...
-        
-        // Initialize statistics
+    // Initialize statistics (will be called from main DOMContentLoaded)
+    function initializeStatistics() {
         initStats();
         loadStats();
-        
-        // Update stats when timer completes
-        const originalStartTimer = startTimer;
-        startTimer = function() {
-            originalStartTimer.apply(this, arguments);
-            startSession(state.currentMode === 'break' ? 'break' : 'focus');
-        };
-        
-        const originalStopTimer = stopTimer;
-        stopTimer = function() {
-            originalStopTimer.apply(this, arguments);
-            endSession();
-        };
-    });
+    }
 
     // Statistics tracking
     let stats = {
@@ -1879,74 +2094,80 @@ document.addEventListener('DOMContentLoaded', function() {
         currentSessionType: null
     };
 
-    // Update statistics when timer completes
+    // Add version constant
+    const STATS_VERSION = 1;
+
     function updateStats(minutes, type) {
-        console.log('Updating stats:', { minutes, type, timerType: state.timer.timerType });
-        
-        // Only count focus time for simple timer, pomodoro focus, and endless timer
-        if (type === 'focus' && 
-            (state.timer.timerType === 'simple' || 
-             state.timer.timerType === 'pomodoro' || 
-             state.timer.timerType === 'endless')) {
-            stats.totalFocusTime += minutes;
+      // Update display without timer-specific logic
+      const focusTimeElement = document.getElementById('total-focus-time');
+      const breakTimeElement = document.getElementById('total-break-time');
+      const sessionsElement = document.getElementById('total-sessions');
+      
+      if (focusTimeElement) focusTimeElement.textContent = stats.totalFocusTime;
+      if (breakTimeElement) breakTimeElement.textContent = stats.totalBreakTime;
+      if (sessionsElement) sessionsElement.textContent = stats.totalSessions;
+      
+      // Save to localStorage with version
+      localStorage.setItem('focusStats', JSON.stringify({
+        version: STATS_VERSION,
+        data: stats
+      }));
+    }
+
+    function loadStats() {
+      try {
+        const savedStats = localStorage.getItem('focusStats');
+        if (savedStats) {
+          const parsed = JSON.parse(savedStats);
+          
+          // Check version and migrate if needed
+          if (parsed.version !== STATS_VERSION) {
+            console.log('Migrating stats from version', parsed.version, 'to', STATS_VERSION);
+            // Add migration logic here if needed
+          }
+          
+          stats = parsed.data;
+          
+          // Update UI
+          const focusTimeElement = document.getElementById('total-focus-time');
+          const breakTimeElement = document.getElementById('total-break-time');
+          const sessionsElement = document.getElementById('total-sessions');
+          
+          if (focusTimeElement) focusTimeElement.textContent = stats.totalFocusTime;
+          if (breakTimeElement) breakTimeElement.textContent = stats.totalBreakTime;
+          if (sessionsElement) sessionsElement.textContent = stats.totalSessions;
         }
-        
-        // Only count break time for pomodoro breaks
-        if (type === 'break' && state.timer.timerType === 'pomodoro') {
-            stats.totalBreakTime += minutes;
-        }
-        
-        // Update display
-        const focusTimeElement = document.getElementById('total-focus-time');
-        const breakTimeElement = document.getElementById('total-break-time');
-        const sessionsElement = document.getElementById('total-sessions');
-        
-        if (focusTimeElement) focusTimeElement.textContent = stats.totalFocusTime;
-        if (breakTimeElement) breakTimeElement.textContent = stats.totalBreakTime;
-        if (sessionsElement) sessionsElement.textContent = stats.totalSessions;
-        
-        // Save to localStorage
-        localStorage.setItem('focusStats', JSON.stringify(stats));
+      } catch (e) {
+        console.error('Error loading stats:', e);
+        // Reset stats on error
+        stats = {
+          totalFocusTime: 0,
+          totalBreakTime: 0,
+          totalSessions: 0,
+          currentSessionStart: null,
+          currentSessionType: null
+        };
+      }
     }
 
     // Start tracking a new session
     function startSession(type) {
-        if (!stats.currentSessionStart) {
-            stats.currentSessionStart = new Date();
-            stats.currentSessionType = type;
-            console.log('Starting session:', { type, timerType: state.timer.timerType });
+        if (!state.sessionStartTime) {
+            state.sessionStartTime = Date.now();
+            state.sessionType = type;
         }
     }
 
     // End current session
     function endSession() {
-        if (stats.currentSessionStart) {
-            const sessionDuration = Math.floor((new Date() - stats.currentSessionStart) / 1000 / 60);
-            console.log('Ending session:', { 
-                duration: sessionDuration, 
-                type: stats.currentSessionType,
-                timerType: state.timer.timerType 
-            });
-            
-            updateStats(sessionDuration, stats.currentSessionType);
-            stats.currentSessionStart = null;
-            stats.currentSessionType = null;
+        if (state.sessionStartTime) {
+            const duration = Math.floor((Date.now() - state.sessionStartTime) / 1000 / 60);
+            if (duration > 0) {
+              updateStats(duration, state.sessionType);
+            }
+            state.sessionStartTime = null;
+            state.sessionType = null;
             stats.totalSessions++;
-        }
-    }
-
-    // Load saved statistics
-    function loadStats() {
-        const savedStats = localStorage.getItem('focusStats');
-        if (savedStats) {
-            stats = JSON.parse(savedStats);
-            const focusTimeElement = document.getElementById('total-focus-time');
-            const breakTimeElement = document.getElementById('total-break-time');
-            const sessionsElement = document.getElementById('total-sessions');
-            
-            if (focusTimeElement) focusTimeElement.textContent = stats.totalFocusTime;
-            if (breakTimeElement) breakTimeElement.textContent = stats.totalBreakTime;
-            if (sessionsElement) sessionsElement.textContent = stats.totalSessions;
         }
     }
 
@@ -1977,358 +2198,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Update the toggleTimer function to track sessions
-    const originalToggleTimer = toggleTimer;
-    toggleTimer = function() {
-        const wasRunning = state.timer.isRunning;
-        originalToggleTimer.apply(this, arguments);
-        
-        if (!wasRunning && state.timer.isRunning) {
-            // Timer started
-            startSession(state.timer.mode);
-        } else if (wasRunning && !state.timer.isRunning) {
-            // Timer stopped
-            endSession();
-        }
-    };
 
-    // Update the resetTimer function to track sessions
-    const originalResetTimer = resetTimer;
-    resetTimer = function() {
-        if (state.timer.isRunning) {
-            endSession();
-        }
-        originalResetTimer.apply(this, arguments);
-    };
 
-    // Update the changeTimerType function
-    const originalChangeTimerType = changeTimerType;
-    changeTimerType = function(newType) {
-        if (state.timer.isRunning) {
-            endSession();
-        }
-        originalChangeTimerType.apply(this, arguments);
-    };
 
-    // Update the toggleMode function
-    const originalToggleMode = toggleMode;
-    toggleMode = function(newMode) {
-        if (state.timer.isRunning) {
-            endSession();
-        }
-        originalToggleMode.apply(this, arguments);
-    };
 
-    // Initialize statistics when the page loads
-    document.addEventListener('DOMContentLoaded', () => {
-        // Initialize statistics
-        initStats();
-        loadStats();
-        
-        // Add event listeners for timer controls
-        const startBtn = document.getElementById('startBtn');
-        const pauseBtn = document.getElementById('pauseBtn');
-        const restartBtn = document.getElementById('restartBtn');
-        
-        if (startBtn) {
-            startBtn.addEventListener('click', () => {
-                if (!state.timer.isRunning) {
-                    startSession(state.timer.mode);
-                }
-            });
-        }
-        
-        if (pauseBtn) {
-            pauseBtn.addEventListener('click', () => {
-                if (state.timer.isRunning) {
-                    endSession();
-                }
-            });
-        }
-        
-        if (restartBtn) {
-            restartBtn.addEventListener('click', () => {
-                if (state.timer.isRunning) {
-                    endSession();
-                }
-            });
-        }
-    });
+    // Statistics will be initialized from main DOMContentLoaded handler
 
-    // Statistics Modal
-    const statsModal = document.getElementById('stats-modal');
-    if (statsModal) {
-        statsModal.innerHTML = `
-            <div class="sheet-header">
-                <h3>Focus Statistics</h3>
-                <button id="close-stats" class="close-btn" aria-label="Close">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </button>
-            </div>
-            <div class="sheet-content">
-                <div class="stats-container">
-                    <div class="stat-item">
-                        <div class="stat-value" id="total-focus-time">0</div>
-                        <div class="stat-label">Focus Time</div>
-                        <div class="stat-unit">minutes</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="total-break-time">0</div>
-                        <div class="stat-label">Break Time</div>
-                        <div class="stat-unit">minutes</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="total-sessions">0</div>
-                        <div class="stat-label">Total Sessions</div>
-                        <div class="stat-unit">sessions</div>
-                    </div>
-                </div>
-
-                <!-- Graph Section -->
-                <div class="stats-graph-section">
-                     <div class="graph-header">
-                        <h4>Focus Time Trends</h4>
-                        <div class="time-range-selector">
-                            <button class="time-range-btn active" data-range="24h">24h</button>
-                            <button class="time-range-btn" data-range="7d">7d</button>
-                            <button class="time-range-btn" data-range="30d">30d</button>
-                        </div>
-                     </div>
-                    <div class="graph-container" id="stats-graph">
-                         <p class="empty-graph-message">No data available yet. Start a timer to see your trends!</p>
-                    </div>
-                </div>
-
-            </div>
-        `;
-
-        // Add styles for the stats modal
-        const statsModalStyle = document.createElement('style');
-        statsModalStyle.textContent = `
-            #stats-modal {
-                position: fixed;
-                bottom: 0;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 100%;
-                max-width: 500px;
-                background: rgba(0, 0, 0, 0.8);
-                backdrop-filter: blur(10px);
-                border-radius: 20px 20px 0 0;
-                padding: 20px;
-                z-index: 1000;
-                transition: transform 0.3s ease-out;
-                box-sizing: border-box; /* Include padding in width */
-            }
-
-            #stats-modal.hidden {
-                transform: translate(-50%, 100%);
-            }
-
-            #stats-modal.active {
-                transform: translate(-50%, 0);
-            }
-
-            .stats-container {
-                display: flex;
-                justify-content: space-around;
-                align-items: center;
-                padding: 20px 0;
-            }
-
-            .stat-item {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                text-align: center;
-                padding: 15px;
-                background: rgba(255, 255, 255, 0.1);
-                border-radius: 12px;
-                min-width: 100px; /* Adjusted min-width */
-                 flex: 1; /* Allow items to grow */
-                 margin: 0 5px; /* Add horizontal margin */
-            }
-
-             .stat-item:first-child { margin-left: 0; }
-             .stat-item:last-child { margin-right: 0; }
-
-            .stat-value {
-                font-size: 2em; /* Adjusted font size */
-                font-weight: bold;
-                color: #fff;
-                margin-bottom: 5px;
-            }
-
-            .stat-label {
-                font-size: 0.9em; /* Adjusted font size */
-                color: #bdbdbd;
-                margin-bottom: 3px;
-            }
-
-            .stat-unit {
-                font-size: 0.7em; /* Adjusted font size */
-                color: #666;
-            }
-
-            .sheet-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 20px;
-            }
-
-            .sheet-header h3 {
-                margin: 0;
-                color: #fff;
-            }
-
-            .close-btn {
-                background: none;
-                border: none;
-                color: #fff;
-                cursor: pointer;
-                padding: 5px;
-                 display: flex; /* Center icon */
-                 align-items: center;
-                 justify-content: center;
-            }
-
-            .close-btn:hover {
-                opacity: 0.8;
-            }
-
-            /* Graph Section Styles */
-            .stats-graph-section {
-                margin-top: 30px;
-                padding-top: 20px;
-                border-top: 1px solid rgba(255, 255, 255, 0.1);
-            }
-
-            .graph-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 15px;
-            }
-
-            .graph-header h4 {
-                margin: 0;
-                color: #fff;
-                font-size: 1.2em;
-            }
-
-            .time-range-selector {
-                display: flex;
-                border: 1px solid rgba(255, 255, 255, 0.2);
-                border-radius: 8px;
-                overflow: hidden;
-            }
-
-            .time-range-btn {
-                background: none;
-                border: none;
-                color: rgba(255, 255, 255, 0.7);
-                padding: 8px 12px;
-                cursor: pointer;
-                font-size: 0.9em;
-                transition: background 0.3s ease, color 0.3s ease;
-            }
-
-            .time-range-btn.active {
-                background: rgba(255, 255, 255, 0.2);
-                color: #fff;
-                font-weight: bold;
-            }
-
-            .time-range-btn:hover:not(.active) {
-                 background: rgba(255, 255, 255, 0.1);
-            }
-
-            .graph-container {
-                width: 100%;
-                height: 200px; /* Adjust height as needed */
-                background: rgba(255, 255, 255, 0.05);
-                border-radius: 8px;
-                /* Updated styles for empty state message */
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                text-align: center;
-                color: rgba(255, 255, 255, 0.6);
-                font-size: 1em;
-                padding: 20px;
-                box-sizing: border-box; /* Include padding in width */
-                 overflow: hidden; /* Hide potential overflow */
-            }
-
-            .empty-graph-message {
-                 margin: 0; /* Remove default paragraph margin */
-            }
-
-            /* Placeholder for graph bars (will be dynamic) */
-            .graph-container .bar {
-                 /* Keep bar styles for when data is present */
-                 width: 10px; /* Example width */
-                 background-color: #ffd700; /* Example color */
-                 margin: 0 2px; /* Space between bars */
-                 /* Bars should override flex centering when added */
-            }
-
-            @media (max-width: 480px) {
-                #stats-modal {
-                    padding: 15px;
-                }
-
-                .stats-container {
-                    flex-direction: column; /* Stack items on small screens */
-                    gap: 10px;
-                }
-
-                .stat-item {
-                     width: 100%; /* Full width on small screens */
-                     margin: 0;
-                }
-
-                 .stat-item:first-child { margin-top: 0; }
-                 .stat-item:last-child { margin-bottom: 0; }
-
-                .stat-value {
-                    font-size: 1.8em;
-                }
-
-                .stat-label {
-                    font-size: 0.8em;
-                }
-
-                .stat-unit {
-                    font-size: 0.6em;
-                }
-
-                .graph-header {
-                    flex-direction: column; /* Stack header elements */
-                    align-items: flex-start;
-                }
-
-                .time-range-selector {
-                    margin-top: 10px; /* Space between title and selector */
-                     width: 100%;
-                }
-
-                 .time-range-btn {
-                     flex: 1; /* Distribute width equally */
-                     text-align: center;
-                 }
-
-                 .graph-container {
-                     height: 150px; /* Smaller graph on mobile */
-                 }
-            }
-        `;
-        document.head.appendChild(statsModalStyle);
-    }
+    // Enhanced Statistics Modal is now handled by HTML and insights initialization
+    // Removed old stats modal code that was overriding the enhanced HTML version
 
     // Add direct event listener for close button
     document.getElementById('close-stats')?.removeEventListener('click', handleCloseStatsClick);
@@ -2357,34 +2234,43 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
 
-    // Copy functionality for todo list
-    const copyBtn = document.querySelector('.copy-btn');
-    if (copyBtn) copyBtn.addEventListener('click', function() {
-        const taskList = document.getElementById('task-list');
-        if (!taskList) return;
-        const tasks = Array.from(taskList.querySelectorAll('.task-item'));
-        const lines = tasks.map(item => {
-            const text = item.querySelector('.task-text').textContent.trim();
-            if (!text) return null;
-            const circle = item.querySelector('.task-circle');
-            if (circle.classList.contains('completed')) {
-                return `✔ ${text}`;
+    // Hide Current Goal toggle logic
+    const hideGoalToggle = document.getElementById('hide-goal-toggle');
+    const currentGoalContainer = document.querySelector('.current-goal-container');
+    if (hideGoalToggle && currentGoalContainer) {
+        // Set initial state from localStorage
+        const hideGoal = localStorage.getItem('hideCurrentGoal') === 'true';
+        hideGoalToggle.checked = hideGoal;
+        currentGoalContainer.style.display = hideGoal ? 'none' : '';
+        // Toggle handler
+        hideGoalToggle.addEventListener('change', function() {
+            if (hideGoalToggle.checked) {
+                currentGoalContainer.style.display = 'none';
+                localStorage.setItem('hideCurrentGoal', 'true');
             } else {
-                return `☐ ${text}`;
+                currentGoalContainer.style.display = '';
+                localStorage.setItem('hideCurrentGoal', 'false');
             }
-        }).filter(Boolean);
-        const todoText = lines.join('\n');
-        if (todoText) {
-            navigator.clipboard.writeText(todoText).then(() => {
-                showToast('Todo list copied to clipboard!', 'success');
-            }, () => {
-                showToast('Failed to copy todo list.', 'error');
-            });
-        } else {
-            showToast('No todo items to copy.', 'info');
-        }
-    });
+        });
+    }
 });
+
+// Comprehensive cleanup function
+function cleanupAllAudio() {
+    // Cleanup main audio
+    cleanupAudio();
+    
+    // Cleanup mix audios
+    Object.keys(state.mixAudios).forEach(soundId => {
+        stopMixSound(soundId);
+    });
+    
+    // Clear timer interval
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+}
 
 // Define the handler function separately
 function handleCloseStatsClick() {
@@ -2398,448 +2284,2547 @@ function handleCloseStatsClick() {
     }
 }
 
-// Add the full-featured todo list JS code after DOMContentLoaded
-
+// New Todo List Implementation for Updated Design
 document.addEventListener('DOMContentLoaded', function() {
-    const today = new Date();
-    // Get day number
-    const dayNumber = today.getDate();
-    // Get abbreviated month
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const monthAbbr = months[today.getMonth()];
-    // Get abbreviated day of week
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const dayAbbr = days[today.getDay()];
-    // Create the date elements
-    const dateEl = document.getElementById('current-date');
-    if (dateEl) {
-      dateEl.innerHTML = '';
-      const dayNumberEl = document.createElement('div');
-      dayNumberEl.className = 'day-number';
-      dayNumberEl.textContent = dayNumber;
-      const monthDayEl = document.createElement('div');
-      monthDayEl.className = 'month-day';
-      const monthEl = document.createElement('div');
-      monthEl.textContent = monthAbbr;
-      const dayEl = document.createElement('div');
-      dayEl.textContent = dayAbbr;
-      monthDayEl.appendChild(monthEl);
-      monthDayEl.appendChild(dayEl);
-      dateEl.appendChild(dayNumberEl);
-      dateEl.appendChild(monthDayEl);
+    // Get DOM elements
+    const currentDateEl = document.getElementById('current-date');
+    const newTaskInput = document.getElementById('new-task-input');
+    const focusTasksList = document.getElementById('focus-tasks');
+    const nextTasksList = document.getElementById('next-tasks');
+    const doneTasksList = document.getElementById('done-tasks');
+    const taskCountText = document.getElementById('task-count-text');
+    const prevDayBtn = document.getElementById('prev-day');
+    const nextDayBtn = document.getElementById('next-day');
+    
+    // State
+    let tasks = [];
+    let currentDate = new Date();
+    
+    // Initialize
+    init();
+    
+    function init() {
+        updateDateDisplay();
+        loadTasks();
+        setupEventListeners();
+        renderTasks();
+        updateTaskCount();
+        updateSectionTitles();
     }
-    const taskList = document.getElementById('task-list');
-    const helpBtn = document.querySelector('.help-btn');
-    const clearBtn = document.querySelector('.clear-btn');
-    const downloadBtn = document.querySelector('.download-btn');
-    const hideBtn = document.querySelector('.hide-btn');
-    const showListBtn = document.getElementById('show-list-btn');
-    const todoContainer = document.getElementById('todo-container');
-    // Initialize Feather icons
-    if (window.feather) feather.replace();
-    // Demo data
-    const demoData = [
-        { text: "Click to add your todo.", status: "" },
-        { text: "Click on circle to change progress.", status: "" },
-        { text: "Single click will make task in progress.", status: "in-progress" },
-        { text: "Double click will make it complete.", status: "completed" },
-        { text: "Click on download and download it.", status: "" },
-        { text: "Click on the dustbin to clear this list.", status: "" }
-    ];
-    // Check local storage for existing tasks
-    const storedTasks = localStorage.getItem('analogTasks');
-    // Always load demo data on first visit
-    if (!storedTasks) {
-        loadDemoData();
-        updateGoalFromTodo();
-    } else {
-        // Load saved tasks
-        const tasks = JSON.parse(storedTasks);
-        if (tasks.length > 0) {
-            tasks.forEach(task => {
-                addTask(task.text, task.status);
-            });
-            sortTasks();
-            updateGoalFromTodo();
-        } else {
-            // Add empty cells if no saved tasks
-            for (let i = 0; i < 10; i++) {
-                addEmptyTask();
+    
+    function updateDateDisplay() {
+        const dayNumber = currentDate.getDate();
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthAbbr = months[currentDate.getMonth()];
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const dayAbbr = days[currentDate.getDay()];
+        
+        if (currentDateEl) {
+            // Check if the proper structure exists, if not create it
+            let dayNumberEl = currentDateEl.querySelector('.day-number');
+            let monthEl = currentDateEl.querySelector('.month');
+            let weekdayEl = currentDateEl.querySelector('.weekday');
+            
+            if (!dayNumberEl || !monthEl || !weekdayEl) {
+                // Create the proper structure if it doesn't exist
+                currentDateEl.innerHTML = `
+                    <div class="date-display">
+                        <span class="day-number">${dayNumber}</span>
+                        <div class="date-info">
+                            <span class="month">${monthAbbr}</span>
+                            <span class="weekday">${dayAbbr}</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Update existing elements
+                dayNumberEl.textContent = dayNumber;
+                monthEl.textContent = monthAbbr;
+                weekdayEl.textContent = dayAbbr;
             }
-            updateGoalFromTodo();
         }
     }
-    // Add new task
-    function addTask(text, status = "") {
+    
+    function setupEventListeners() {
+        // New task input
+        if (newTaskInput) {
+            newTaskInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && this.value.trim()) {
+                    addNewTask(this.value.trim());
+                    this.value = '';
+                }
+            });
+        }
+        
+        // Date navigation
+        if (prevDayBtn) {
+            prevDayBtn.addEventListener('click', () => {
+                currentDate.setDate(currentDate.getDate() - 1);
+                updateDateDisplay();
+                loadTasks();
+                renderTasks();
+                updateTaskCount();
+                updateSectionTitles();
+            });
+        }
+        
+        if (nextDayBtn) {
+            nextDayBtn.addEventListener('click', () => {
+                currentDate.setDate(currentDate.getDate() + 1);
+                updateDateDisplay();
+                loadTasks();
+                renderTasks();
+                updateTaskCount();
+                updateSectionTitles();
+            });
+        }
+        
+        // Setup drag and drop between sections
+        setupDragAndDrop();
+    }
+    
+    function addNewTask(text) {
+        const task = {
+            id: Date.now() + Math.random(),
+            text: text,
+            status: 'next', // Default to next section
+            date: getDateKey(currentDate),
+            createdAt: new Date().toISOString()
+        };
+        
+        tasks.push(task);
+        saveTasks();
+        renderTasks();
+        updateTaskCount();
+        updateGoalFromTodo();
+        updateSectionTitles();
+    }
+    
+    function renderTasks() {
+        const todayKey = getDateKey(currentDate);
+        const todayTasks = tasks.filter(task => task.date === todayKey);
+        
+        // Clear existing tasks
+        if (focusTasksList) focusTasksList.innerHTML = '';
+        if (nextTasksList) nextTasksList.innerHTML = '';
+        if (doneTasksList) doneTasksList.innerHTML = '';
+        
+        // Render tasks in their respective sections
+        todayTasks.forEach(task => {
+            const taskElement = createTaskElement(task);
+            
+            switch (task.status) {
+                case 'focus':
+                    if (focusTasksList) focusTasksList.appendChild(taskElement);
+                    break;
+                case 'next':
+                    if (nextTasksList) nextTasksList.appendChild(taskElement);
+                    break;
+                case 'done':
+                    if (doneTasksList) doneTasksList.appendChild(taskElement);
+                    break;
+            }
+        });
+        
+        // Add empty placeholders for drag zones
+        addEmptyDropZones(todayTasks);
+    }
+    
+    function addEmptyDropZones(todayTasks) {
+        const focusTasks = todayTasks.filter(task => task.status === 'focus');
+        const nextTasks = todayTasks.filter(task => task.status === 'next');
+        const doneTasks = todayTasks.filter(task => task.status === 'done');
+        
+        // Add empty placeholder if section is empty
+        if (focusTasks.length === 0 && focusTasksList) {
+            const placeholder = createEmptyPlaceholder('Drop tasks here to focus on them');
+            focusTasksList.appendChild(placeholder);
+        }
+        
+        if (nextTasks.length === 0 && nextTasksList) {
+            const placeholder = createEmptyPlaceholder('Drop tasks here to plan for later');
+            nextTasksList.appendChild(placeholder);
+        }
+        
+        if (doneTasks.length === 0 && doneTasksList) {
+            const placeholder = createEmptyPlaceholder('Drop completed tasks here');
+            doneTasksList.appendChild(placeholder);
+        }
+    }
+    
+    function createEmptyPlaceholder(text) {
+        const placeholder = document.createElement('li');
+        placeholder.className = 'empty-placeholder';
+        placeholder.innerHTML = `
+            <div class="empty-placeholder-content">
+                <span class="empty-placeholder-text">${text}</span>
+            </div>
+        `;
+        return placeholder;
+    }
+    
+    function createTaskElement(task) {
         const li = document.createElement('li');
         li.className = 'task-item';
-        const circle = document.createElement('div');
-        circle.className = 'task-circle';
-        if (status === "in-progress") {
-            circle.classList.add('in-progress');
-        } else if (status === "completed") {
-            circle.classList.add('completed');
-        }
-        const taskText = document.createElement('div');
-        taskText.className = 'task-text';
-        taskText.setAttribute('contenteditable', 'true');
-        taskText.textContent = text;
-        const dragHandle = document.createElement('div');
-        dragHandle.className = 'drag-handle';
-        const dragDots = document.createElement('div');
-        dragDots.className = 'drag-dots';
-        // Create 6 dots
-        for (let i = 0; i < 6; i++) {
-            const dot = document.createElement('div');
-            dot.className = 'drag-dot';
-            dragDots.appendChild(dot);
-        }
-        dragHandle.appendChild(dragDots);
-        li.appendChild(circle);
-        li.appendChild(taskText);
-        li.appendChild(dragHandle);
-        setupTaskEvents(li, circle, taskText, dragHandle);
-        taskList.appendChild(li);
+        li.draggable = true;
+        li.dataset.taskId = task.id;
+        
+        li.innerHTML = `
+            <div class="task-checkbox ${task.status === 'done' ? 'checked' : ''}">
+                ${task.status === 'done' ? 
+                    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' :
+                    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2"/></svg>'
+                }
+            </div>
+            <span class="task-text ${task.status === 'done' ? 'completed' : ''}">${task.text}</span>
+        `;
+        
+        // Setup task events
+        setupTaskEvents(li, task);
+        
         return li;
     }
-    // Add empty task
-    function addEmptyTask() {
-        addTask('');
+    
+    function setupTaskEvents(element, task) {
+        const checkbox = element.querySelector('.task-checkbox');
+        const textSpan = element.querySelector('.task-text');
+        
+        // Checkbox click handler
+        if (checkbox) {
+            checkbox.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const reverse = e.shiftKey; // Hold Shift for reverse cycle
+                toggleTaskStatus(task, reverse);
+            });
+        }
+        
+        // Make text editable on double click
+        if (textSpan) {
+            textSpan.addEventListener('dblclick', (e) => {
+                makeTextEditable(textSpan, task);
+            });
+        }
+        
+        // Drag events
+        element.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', task.id);
+            element.classList.add('dragging');
+        });
+        
+        element.addEventListener('dragend', () => {
+            element.classList.remove('dragging');
+        });
     }
-    // Setup events for task item
-    function setupTaskEvents(li, circle, taskText, dragHandle) {
-        // Update drag handle visibility based on task status
-        function updateDragHandle() {
-            const isCompleted = circle.classList.contains('completed');
-            const isInProgress = circle.classList.contains('in-progress');
-            const hasText = taskText.textContent.trim() !== '';
-            if (isCompleted || isInProgress || !hasText) {
-                dragHandle.classList.add('hidden');
-                li.draggable = false;
-            } else {
-                dragHandle.classList.remove('hidden');
-                li.draggable = true;
+    
+    function toggleTaskStatus(task, reverse = false) {
+        // Find the task in the tasks array and update it directly
+        const taskIndex = tasks.findIndex(t => t.id === task.id);
+        if (taskIndex === -1) {
+            return;
+        }
+        
+        if (reverse) {
+            // Reverse cycle: next <- focus <- done <- next
+            switch (tasks[taskIndex].status) {
+                case 'next':
+                    tasks[taskIndex].status = 'done';
+                    break;
+                case 'focus':
+                    tasks[taskIndex].status = 'next';
+                    break;
+                case 'done':
+                    tasks[taskIndex].status = 'focus';
+                    break;
+            }
+        } else {
+            // Forward cycle: next -> focus -> done -> next
+            switch (tasks[taskIndex].status) {
+                case 'next':
+                    tasks[taskIndex].status = 'focus';
+                    break;
+                case 'focus':
+                    tasks[taskIndex].status = 'done';
+                    break;
+                case 'done':
+                    tasks[taskIndex].status = 'next';
+                    break;
             }
         }
-        // Initial update
-        updateDragHandle();
-        // Drag and drop functionality
-        li.addEventListener('dragstart', function(e) {
-            if (!li.draggable) return;
-            li.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/html', li.outerHTML);
-            // Create a custom drag image that stays within bounds
-            const dragImage = li.cloneNode(true);
-            dragImage.style.position = 'absolute';
-            dragImage.style.top = '-1000px';
-            dragImage.style.left = '0px';
-            dragImage.style.width = li.offsetWidth + 'px';
-            dragImage.style.opacity = '0.8';
-            dragImage.style.backgroundColor = 'white';
-            dragImage.style.border = '1px solid #e0e0e0';
-            dragImage.style.borderRadius = '4px';
-            dragImage.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-            dragImage.style.padding = '10px';
-            dragImage.style.zIndex = '1000';
-            document.body.appendChild(dragImage);
-            // Calculate offset so cursor appears over the drag handle
-            const dragHandleRect = dragHandle.getBoundingClientRect();
-            const liRect = li.getBoundingClientRect();
-            const offsetX = dragHandleRect.left - liRect.left + (dragHandleRect.width / 2);
-            const offsetY = dragHandleRect.top - liRect.top + (dragHandleRect.height / 2);
-            e.dataTransfer.setDragImage(dragImage, offsetX, offsetY);
-            // Clean up the drag image after a short delay
-            setTimeout(() => {
-                if (document.body.contains(dragImage)) {
-                    document.body.removeChild(dragImage);
+        
+        saveTasks();
+        renderTasks();
+        updateTaskCount();
+        updateGoalFromTodo();
+        updateSectionTitles();
+    }
+    
+    function makeTextEditable(textElement, task) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = task.text;
+        input.className = 'task-edit-input';
+        
+        textElement.replaceWith(input);
+        input.focus();
+        input.select();
+        
+        function finishEditing() {
+            const newText = input.value.trim();
+            if (newText && newText !== task.text) {
+                // Find and update the task in the tasks array
+                const taskIndex = tasks.findIndex(t => t.id === task.id);
+                if (taskIndex !== -1) {
+                    tasks[taskIndex].text = newText;
+                    saveTasks();
                 }
-            }, 0);
-        });
-        li.addEventListener('dragend', function(e) {
-            li.classList.remove('dragging');
-            // Remove drag-over class from all items
-            const allItems = taskList.querySelectorAll('.task-item');
-            allItems.forEach(item => item.classList.remove('drag-over'));
-        });
-        li.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            const dragging = taskList.querySelector('.dragging');
-            if (dragging && dragging !== li) {
-                li.classList.add('drag-over');
             }
-        });
-        li.addEventListener('dragleave', function(e) {
-            if (!li.contains(e.relatedTarget)) {
-                li.classList.remove('drag-over');
-            }
-        });
-        li.addEventListener('drop', function(e) {
-            e.preventDefault();
-            li.classList.remove('drag-over');
-            const dragging = taskList.querySelector('.dragging');
-            if (dragging && dragging !== li) {
-                // Get the bounding rect to determine drop position
-                const rect = li.getBoundingClientRect();
-                const midpoint = rect.top + rect.height / 2;
-                if (e.clientY < midpoint) {
-                    // Insert before
-                    taskList.insertBefore(dragging, li);
-                } else {
-                    // Insert after
-                    taskList.insertBefore(dragging, li.nextSibling);
-                }
-                saveTasksToLocalStorage();
-                updateGoalFromTodo();
-            }
-        });
-        // Add task circle click handlers for status changes
-        circle.addEventListener('click', function(e) {
-            e.stopPropagation(); // Prevent event from bubbling to modal overlay
-            if (circle.classList.contains('completed')) {
-                // If completed, reset to not started
-                circle.classList.remove('completed');
-                circle.classList.remove('in-progress');
-            } else if (circle.classList.contains('in-progress')) {
-                // If in progress, mark as completed
-                circle.classList.remove('in-progress');
-                circle.classList.add('completed');
-            } else {
-                // If not started, make it in progress
-                circle.classList.add('in-progress');
-            }
-            // Update drag handle visibility
-            updateDragHandle();
-            // Sort tasks and save
-            sortTasks();
-            saveTasksToLocalStorage();
+            renderTasks();
             updateGoalFromTodo();
-        });
-        // Double click to complete directly
-        circle.addEventListener('dblclick', function(e) {
-            e.stopPropagation(); // Prevent event from bubbling to modal overlay
-            circle.classList.remove('in-progress');
-            circle.classList.add('completed');
-            // Update drag handle visibility
-            updateDragHandle();
-            // Sort tasks and save
-            sortTasks();
-            saveTasksToLocalStorage();
-            updateGoalFromTodo();
-        });
-        // Text click - make editable
-        taskText.addEventListener('focus', function() {
-            this.classList.add('editing');
-        });
-        // Text blur - finish editing
-        taskText.addEventListener('blur', function() {
-            this.classList.remove('editing');
-            // Update drag handle visibility
-            updateDragHandle();
-            // Check if we need more empty cells
-            checkAndAddEmptyCell();
-            // Sort tasks and save
-            sortTasks();
-            saveTasksToLocalStorage();
-            updateGoalFromTodo();
-        });
-        // Task text key events
-        taskText.addEventListener('keydown', function(e) {
+        }
+        
+        input.addEventListener('blur', finishEditing);
+        input.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
+                finishEditing();
+            }
+        });
+    }
+    
+    function setupDragAndDrop() {
+        const sections = [focusTasksList, nextTasksList, doneTasksList];
+        const sectionMap = {
+            'focus-tasks': 'focus',
+            'next-tasks': 'next',
+            'done-tasks': 'done'
+        };
+        
+        sections.forEach(section => {
+            if (!section) return;
+            
+            section.addEventListener('dragover', (e) => {
                 e.preventDefault();
-                this.blur();
+                section.classList.add('drag-over');
+            });
+            
+            section.addEventListener('dragleave', (e) => {
+                if (!section.contains(e.relatedTarget)) {
+                    section.classList.remove('drag-over');
+                }
+            });
+            
+            section.addEventListener('drop', (e) => {
+                e.preventDefault();
+                section.classList.remove('drag-over');
+                
+                const taskId = e.dataTransfer.getData('text/plain');
+                const task = tasks.find(t => t.id.toString() === taskId);
+                const newStatus = sectionMap[section.id];
+                
+                if (task && newStatus && task.status !== newStatus) {
+                    task.status = newStatus;
+                    saveTasks();
+                    renderTasks();
+                    updateTaskCount();
+                    updateGoalFromTodo();
+                    updateSectionTitles();
+                }
+            });
+        });
+    }
+    
+    function updateTaskCount() {
+        if (!taskCountText) return;
+        
+        const todayKey = getDateKey(currentDate);
+        const todayTasks = tasks.filter(task => task.date === todayKey);
+        const count = todayTasks.length;
+        
+        taskCountText.textContent = `${count} task${count !== 1 ? 's' : ''}`;
+    }
+    
+    function loadTasks() {
+        const stored = localStorage.getItem('todoTasks');
+        if (stored) {
+            try {
+                tasks = JSON.parse(stored);
+            } catch (e) {
+                console.error('Error loading tasks:', e);
+                tasks = [];
             }
-        });
-        // Text input event to update drag handle
-        taskText.addEventListener('input', function() {
-            updateDragHandle();
-        });
-    }
-    // Sort tasks: in-progress at top, then not started & empty, then completed
-    function sortTasks() {
-        const tasks = Array.from(taskList.querySelectorAll('.task-item'));
-        // Remove all tasks from DOM
-        tasks.forEach(task => task.remove());
-        // Sort tasks by status
-        const inProgressTasks = tasks.filter(task => 
-            task.querySelector('.task-circle').classList.contains('in-progress') && 
-            task.querySelector('.task-text').textContent.trim() !== '');
-        const emptyTasks = tasks.filter(task => 
-            task.querySelector('.task-text').textContent.trim() === '');
-        const notStartedTasks = tasks.filter(task => 
-            !task.querySelector('.task-circle').classList.contains('in-progress') && 
-            !task.querySelector('.task-circle').classList.contains('completed') && 
-            task.querySelector('.task-text').textContent.trim() !== '');
-        const completedTasks = tasks.filter(task => 
-            task.querySelector('.task-circle').classList.contains('completed') && 
-            task.querySelector('.task-text').textContent.trim() !== '');
-        // Add back in proper order: in-progress, not started, empty, completed
-        const sortedTasks = [...inProgressTasks, ...notStartedTasks, ...emptyTasks, ...completedTasks];
-        sortedTasks.forEach(task => taskList.appendChild(task));
-        updateGoalFromTodo();
-    }
-    // Check if we need to add more empty cells
-    function checkAndAddEmptyCell() {
-        const tasks = Array.from(taskList.querySelectorAll('.task-item'));
-        const emptyCells = tasks.filter(task => 
-            task.querySelector('.task-text').textContent.trim() === '');
-        if (emptyCells.length === 0) {
-            addEmptyTask();
+        } else {
+            // Load demo tasks for first time users
+            tasks = [
+                {
+                    id: 1,
+                    text: 'Stop and thank for all you have',
+                    status: 'focus',
+                    date: getDateKey(currentDate),
+                    createdAt: new Date().toISOString()
+                },
+                {
+                    id: 2,
+                    text: 'Help someone',
+                    status: 'next',
+                    date: getDateKey(currentDate),
+                    createdAt: new Date().toISOString()
+                },
+                {
+                    id: 3,
+                    text: 'Training',
+                    status: 'next',
+                    date: getDateKey(currentDate),
+                    createdAt: new Date().toISOString()
+                },
+                {
+                    id: 4,
+                    text: 'Refuel and pack jeep for the trip',
+                    status: 'next',
+                    date: getDateKey(currentDate),
+                    createdAt: new Date().toISOString()
+                },
+                {
+                    id: 5,
+                    text: 'Order coffee beans and filters from Miro',
+                    status: 'next',
+                    date: getDateKey(currentDate),
+                    createdAt: new Date().toISOString()
+                },
+                {
+                    id: 6,
+                    text: 'Review the planning documents',
+                    status: 'done',
+                    date: getDateKey(currentDate),
+                    createdAt: new Date().toISOString()
+                },
+                {
+                    id: 7,
+                    text: 'Sync with the team',
+                    status: 'done',
+                    date: getDateKey(currentDate),
+                    createdAt: new Date().toISOString()
+                }
+            ];
+            saveTasks();
         }
-        updateGoalFromTodo();
     }
-    // Load demo data function
-    function loadDemoData() {
-        // Clear existing tasks
-        taskList.innerHTML = '';
-        // Add demo tasks
-        demoData.forEach(task => {
-            addTask(task.text, task.status);
-        });
-        // Save to local storage - no need to sort since demo data is ordered correctly
-        saveTasksToLocalStorage();
-        updateGoalFromTodo();
+    
+    function saveTasks() {
+        localStorage.setItem('todoTasks', JSON.stringify(tasks));
     }
-    // Help button now loads demo data directly without confirmation
-    if (helpBtn) helpBtn.addEventListener('click', function() { loadDemoData(); updateGoalFromTodo(); });
-    // Clear all tasks directly without confirmation
-    if (clearBtn) clearBtn.addEventListener('click', function() {
-        taskList.innerHTML = '';
-        // Add back 10 empty cells
-        for (let i = 0; i < 10; i++) {
-            addEmptyTask();
-        }
-        saveTasksToLocalStorage();
-        updateGoalFromTodo();
-    });
-    // Hide and show list
-    if (hideBtn) hideBtn.addEventListener('click', function() {
-        if (todoContainer) todoContainer.classList.add('hidden');
-        if (showListBtn) showListBtn.classList.add('visible');
-        localStorage.setItem('todoHidden', 'true');
-    });
-    if (showListBtn) showListBtn.addEventListener('click', function() {
-        if (todoContainer) todoContainer.classList.remove('hidden');
-        if (showListBtn) showListBtn.classList.remove('visible');
-        localStorage.setItem('todoHidden', 'false');
-    });
-    // Check if todo list was hidden
-    if (localStorage.getItem('todoHidden') === 'true') {
-        if (todoContainer) todoContainer.classList.add('hidden');
-        if (showListBtn) showListBtn.classList.add('visible');
+    
+    function getDateKey(date) {
+        return date.toISOString().split('T')[0];
     }
-    // Save tasks to local storage
-    function saveTasksToLocalStorage() {
-        const tasks = Array.from(taskList.querySelectorAll('.task-item')).map(item => {
-            const text = item.querySelector('.task-text').textContent;
-            let status = "";
-            const circle = item.querySelector('.task-circle');
-            if (circle.classList.contains('in-progress')) {
-                status = "in-progress";
-            } else if (circle.classList.contains('completed')) {
-                status = "completed";
-            }
-            return { text, status };
-        });
-        localStorage.setItem('analogTasks', JSON.stringify(tasks));
-        updateGoalFromTodo();
+    
+    function updateSectionTitles() {
+        const nextSectionTitle = document.querySelector('.next-section .section-title');
+        if (!nextSectionTitle) return;
+        
+        const todayKey = getDateKey(currentDate);
+        const todayTasks = tasks.filter(task => task.date === todayKey);
+        const focusTasks = todayTasks.filter(task => task.status === 'focus');
+        
+        // If no focus tasks, show "Tasks", otherwise show "Next"
+        nextSectionTitle.textContent = focusTasks.length === 0 ? 'Tasks' : 'Next';
     }
-    // Download functionality
-    if (downloadBtn) downloadBtn.addEventListener('click', function() {
-        // Clone the container to avoid modifying the original
-        const container = document.querySelector('.todo-container');
-        const containerClone = container ? container.cloneNode(true) : null;
-        if (!containerClone) return;
-        // Hide buttons in the clone
-        const actionButtons = containerClone.querySelector('#action-buttons');
-        if (actionButtons) actionButtons.style.display = 'none';
-        // Remove empty items in the clone
-        const emptyItems = Array.from(containerClone.querySelectorAll('.task-item')).filter(item => 
-            item.querySelector('.task-text').textContent.trim() === '');
-        emptyItems.forEach(item => item.remove());
-        // Create a new div with just the required content
-        const downloadDiv = document.createElement('div');
-        downloadDiv.style.backgroundColor = 'white';
-        downloadDiv.style.padding = '20px';
-        downloadDiv.style.borderRadius = '8px';
-        downloadDiv.style.position = 'fixed';
-        downloadDiv.style.left = '-9999px';
-        downloadDiv.style.top = '-9999px';
-        // Set fixed width for consistent image size
-        containerClone.style.width = '500px';
-        containerClone.style.minHeight = '300px';
-        // Apply invert filter to the clone
-        containerClone.style.filter = 'invert(1) hue-rotate(180deg)';
-        downloadDiv.appendChild(containerClone);
-        // Add to body temporarily
-        document.body.appendChild(downloadDiv);
-        // Handle the in-progress circles properly for the download
-        const inProgressCircles = downloadDiv.querySelectorAll('.task-circle.in-progress');
-        inProgressCircles.forEach(circle => {
-            circle.classList.remove('in-progress');
-            const halfFill = document.createElement('div');
-            halfFill.style.position = 'absolute';
-            halfFill.style.width = '50%';
-            halfFill.style.height = '100%';
-            halfFill.style.backgroundColor = '#333';
-            halfFill.style.right = '0';
-            halfFill.style.top = '0';
-            circle.appendChild(halfFill);
-        });
-        // Use html2canvas with proper options
-        if (window.html2canvas) {
-          html2canvas(containerClone, {
-              backgroundColor: 'white',
-              scale: 2, // Higher quality
-              logging: false,
-              useCORS: true,
-              removeContainer: true,
-              width: 500, // Fixed width
-              height: null, // Auto height based on content
-              onclone: (clonedDoc) => {
-                  const clonedButtons = clonedDoc.querySelector('#action-buttons');
-                  if (clonedButtons) clonedButtons.remove();
-                  // Also apply the filter to the cloned element in the DOM used by html2canvas
-                  const clonedTodo = clonedDoc.querySelector('.todo-container');
-                  if (clonedTodo) clonedTodo.style.filter = 'invert(1) hue-rotate(180deg)';
-              }
-          }).then(canvas => {
-              const link = document.createElement('a');
-              const today = new Date();
-              const dayNumber = today.getDate();
-              const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-              const monthAbbr = months[today.getMonth()];
-              const year = today.getFullYear();
-              link.download = `todo-${dayNumber}-${monthAbbr}-${year}.png`;
-              link.href = canvas.toDataURL("image/png");
-              link.click();
-              // Clean up
-              document.body.removeChild(downloadDiv);
-          });
-        }
-    });
+    
+    // Delete task function (can be called from UI if needed)
+    function deleteTask(taskId) {
+        tasks = tasks.filter(task => task.id !== taskId);
+        saveTasks();
+        renderTasks();
+        updateTaskCount();
+        updateGoalFromTodo();
+        updateSectionTitles();
+    }
+    
+
+    // Export functions for external use
+    window.todoApp = {
+        addTask: addNewTask,
+        deleteTask: deleteTask,
+        getTasks: () => tasks,
+        renderTasks: renderTasks
+    };
 });
   
-// Helper: Update timer goal from top in-progress todo
+// Helper: Update timer goal from focus tasks
 function updateGoalFromTodo() {
-  const taskList = document.getElementById('task-list');
   const goalDiv = document.getElementById('current-goal');
-  if (!taskList || !goalDiv) return;
-  const inProgress = Array.from(taskList.querySelectorAll('.task-item')).find(
-    li => li.querySelector('.task-circle').classList.contains('in-progress') &&
-          li.querySelector('.task-text').textContent.trim() !== ''
-  );
-  if (inProgress) {
-    const text = inProgress.querySelector('.task-text').textContent.trim();
-    goalDiv.textContent = text;
-    goalDiv.style.color = '#fff';
-    goalDiv.setAttribute('data-auto', 'true');
-  } else if (goalDiv.getAttribute('data-auto') === 'true') {
-    // If previously auto-set, reset to placeholder
-    goalDiv.textContent = 'Goal for This Session?';
-    goalDiv.style.color = '#bdbdbd';
-    goalDiv.removeAttribute('data-auto');
+  if (!goalDiv) return;
+  
+  // Get tasks from the new todo app if available
+  if (window.todoApp) {
+    const tasks = window.todoApp.getTasks();
+    const today = new Date().toISOString().split('T')[0];
+    const focusTask = tasks.find(task => 
+      task.date === today && 
+      task.status === 'focus' && 
+      task.text.trim() !== ''
+    );
+    
+    if (focusTask) {
+      goalDiv.textContent = focusTask.text;
+      goalDiv.style.color = '#fff';
+      goalDiv.setAttribute('data-auto', 'true');
+    } else if (goalDiv.getAttribute('data-auto') === 'true') {
+      // If previously auto-set, reset to placeholder
+      goalDiv.textContent = 'Goal for This Session?';
+      goalDiv.style.color = '#bdbdbd';
+      goalDiv.removeAttribute('data-auto');
+    }
   }
 }
+  
+  
+
+
+
+
+
+  
+  
+function stopMixSound(soundId) {
+  if (state.mixAudios[soundId]) {
+    const audio = state.mixAudios[soundId];
+    audio.pause();
+    audio.currentTime = 0;
+    
+    // Remove event listeners to prevent memory leaks
+    if (audio.onended) audio.onended = null;
+    if (audio.onerror) audio.onerror = null;
+    audio.src = '';
+    audio.load(); // Force cleanup
+    
+    // Consistent cleanup of both audio and volume state
+    delete state.mixAudios[soundId];
+    delete state.mixVolumes[soundId];
+  }
+}
+
+function playMixSound(sound) {
+  // Stop any existing instance of this sound
+  stopMixSound(sound.id);
+  
+  // Create new audio instance
+  const audio = new Audio(sound.url);
+  state.mixAudios[sound.id] = audio;
+  
+  // Add cleanup on end
+  audio.onended = () => {
+    stopMixSound(sound.id);
+  };
+  
+  // Add error handling
+  audio.onerror = (e) => {
+    console.error('Mix sound loading error:', e);
+    stopMixSound(sound.id);
+  };
+  
+  // Play with error handling
+  audio.play().catch(e => {
+    console.error('Mix sound playback error:', e);
+    stopMixSound(sound.id);
+  });
+}
+
+// --- Timer Functionality ---
+// Timer settings
+let timerSettings = {
+  focusTime: 25,
+  shortBreak: 5,
+  longBreak: 15,
+  totalCycles: 4,
+  simpleTimer: 25,
+  sleepTimer: 30,
+  selectedToneId: null,
+  showGoal: true,
+  sessionGoal: '',
+  currentPreset: 'classic'
+};
+
+// Preset configurations
+const presets = {
+  classic: {
+    focusTime: 25,
+    shortBreak: 5,
+    longBreak: 15,
+    totalCycles: 4
+  },
+  extended: {
+    focusTime: 50,
+    shortBreak: 10,
+    longBreak: 30,
+    totalCycles: 4
+  }
+};
+
+// Available tones from Supabase
+let availableTones = [];
+let currentTone = null;
+
+// Timer state
+let timerMode = 'focus';
+let timerType = 'pomodoro';
+let timeLeft = 25 * 60;
+let totalTime = 25 * 60;
+let isTimerRunning = false;
+let isTimerEditing = false;
+let timerInterval = null;
+let elapsedTime = 0;
+let currentCycle = 0;
+let cyclePhase = 'focus'; // 'focus', 'short-break', 'long-break'
+let cycleDots = [];
+
+// DOM Elements
+const timerContainer = document.getElementById('timer-container');
+const timerBtn = document.getElementById('timer-btn');
+const timerDisplay = document.getElementById('timerDisplay');
+const timeDisplay = document.getElementById('time');
+const progressBar = document.getElementById('progress');
+const startBtn = document.getElementById('startBtn');
+const pauseBtn = document.getElementById('pauseBtn');
+const restartBtn = document.getElementById('restartBtn');
+const decreaseBtn = document.getElementById('decrease');
+const increaseBtn = document.getElementById('increase');
+const modeButtons = document.querySelectorAll('.mode-btn');
+const modeSwitcher = document.getElementById('modeSwitcher');
+const timerTypeDots = document.querySelectorAll('.timer-type-dot');
+const cyclesContainer = document.getElementById('cyclesContainer');
+const timerSettingsModal = document.getElementById('timerSettingsModal');
+const closeTimerSettingsBtn = document.getElementById('closeTimerSettingsBtn');
+const cancelTimerSettingsBtn = document.getElementById('cancelTimerSettingsBtn');
+const saveTimerSettingsBtn = document.getElementById('saveTimerSettingsBtn');
+const focusTimeInput = document.getElementById('focusTimeInput');
+const shortBreakInput = document.getElementById('shortBreakInput');
+const longBreakInput = document.getElementById('longBreakInput');
+const cyclesInput = document.getElementById('cyclesInput');
+const simpleTimerInput = document.getElementById('simpleTimerInput');
+const sleepTimerInput = document.getElementById('sleepTimerInput');
+const toneSelect = document.getElementById('toneSelect');
+const goalSection = document.getElementById('goalSection');
+const goalInput = document.getElementById('goalInput');
+const showGoalCheckbox = document.getElementById('showGoalCheckbox');
+const playSoundBtn = document.getElementById('playSoundBtn');
+const presetButtons = document.querySelectorAll('.preset-btn');
+const soundGrid = document.getElementById('sound-grid');
+
+// Initialize timer functionality
+function initializeTimer() {
+  if (!timerBtn) return;
+  
+  // Timer button toggle
+  timerBtn.addEventListener('click', toggleTimer);
+  
+  // Load settings and initialize
+  loadTimerSettings();
+  loadTones();
+  createCycleDots();
+  updateGoalDisplay();
+  updateTimerDisplay();
+  detectCurrentPreset();
+  updatePresetButtons();
+  
+  // Event listeners
+  if (startBtn) startBtn.addEventListener('click', toggleTimerState);
+  if (pauseBtn) pauseBtn.addEventListener('click', toggleTimerState);
+  if (restartBtn) restartBtn.addEventListener('click', resetTimer);
+  if (decreaseBtn) decreaseBtn.addEventListener('click', () => adjustTime(-60));
+  if (increaseBtn) increaseBtn.addEventListener('click', () => adjustTime(60));
+  if (timeDisplay) timeDisplay.addEventListener('click', handleTimeClick);
+  
+  // Settings event listeners
+  if (closeTimerSettingsBtn) {
+    closeTimerSettingsBtn.addEventListener('click', closeTimerSettings);
+  }
+  if (cancelTimerSettingsBtn) {
+    cancelTimerSettingsBtn.addEventListener('click', closeTimerSettings);
+  }
+  if (saveTimerSettingsBtn) {
+    saveTimerSettingsBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      saveTimerSettingsToStorage();
+    });
+  }
+  
+  // Mode buttons
+  modeButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!isTimerRunning && timerType === 'pomodoro') {
+        toggleTimerMode(btn.dataset.mode);
+      }
+    });
+  });
+  
+  // Timer type dots
+  timerTypeDots.forEach(dot => {
+    dot.addEventListener('click', () => {
+      if (!isTimerRunning) {
+        changeTimerType(dot.dataset.timerType);
+      }
+    });
+  });
+  
+  // Goal input
+  if (goalInput) {
+    goalInput.addEventListener('input', () => {
+      timerSettings.sessionGoal = goalInput.value;
+      saveTimerSettingsToStorage();
+    });
+    
+    goalInput.addEventListener('blur', () => {
+      timerSettings.sessionGoal = goalInput.value;
+      saveTimerSettingsToStorage();
+    });
+  }
+  
+  // Play sound button
+  if (playSoundBtn) {
+    playSoundBtn.addEventListener('click', playFocusSound);
+  }
+  
+  // Preset buttons
+  presetButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      applyPreset(btn.dataset.preset);
+    });
+  });
+  
+  // Input change listeners to switch to custom preset
+  const pomodoroInputs = [focusTimeInput, shortBreakInput, longBreakInput, cyclesInput];
+  pomodoroInputs.forEach(input => {
+    if (input) {
+      input.addEventListener('input', () => {
+        setTimeout(() => {
+          detectCurrentPreset();
+          updatePresetButtons();
+        }, 10);
+      });
+    }
+  });
+  
+  // Close settings when clicking outside
+  if (timerSettingsModal) {
+    timerSettingsModal.addEventListener('click', (e) => {
+      if (e.target === timerSettingsModal) {
+        closeTimerSettings();
+      }
+    });
+  }
+}
+
+// Toggle timer visibility
+function toggleTimer() {
+  if (timerContainer.classList.contains('hidden')) {
+    // Show timer, hide sound grid
+    timerContainer.classList.remove('hidden');
+    soundGrid.classList.add('hidden');
+  } else {
+    // Hide timer, show sound grid
+    timerContainer.classList.add('hidden');
+    soundGrid.classList.remove('hidden');
+  }
+}
+
+// Apply preset configuration
+function applyPreset(presetName) {
+  if (presets[presetName]) {
+    const preset = presets[presetName];
+    timerSettings.focusTime = preset.focusTime;
+    timerSettings.shortBreak = preset.shortBreak;
+    timerSettings.longBreak = preset.longBreak;
+    timerSettings.totalCycles = preset.totalCycles;
+    timerSettings.currentPreset = presetName;
+    
+    // Update input values
+    if (focusTimeInput) focusTimeInput.value = preset.focusTime;
+    if (shortBreakInput) shortBreakInput.value = preset.shortBreak;
+    if (longBreakInput) longBreakInput.value = preset.longBreak;
+    if (cyclesInput) cyclesInput.value = preset.totalCycles;
+  } else if (presetName === 'custom') {
+    timerSettings.currentPreset = 'custom';
+  }
+  
+  updatePresetButtons();
+}
+
+// Update preset button states
+function updatePresetButtons() {
+  presetButtons.forEach(btn => {
+    if (btn.dataset.preset === timerSettings.currentPreset) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+}
+
+// Detect if current settings match a preset
+function detectCurrentPreset() {
+  for (const [presetName, preset] of Object.entries(presets)) {
+    if (timerSettings.focusTime === preset.focusTime &&
+        timerSettings.shortBreak === preset.shortBreak &&
+        timerSettings.longBreak === preset.longBreak &&
+        timerSettings.totalCycles === preset.totalCycles) {
+      timerSettings.currentPreset = presetName;
+      return;
+    }
+  }
+  timerSettings.currentPreset = 'custom';
+}
+
+// Load settings from localStorage
+function loadTimerSettings() {
+  const savedSettings = localStorage.getItem('pomodoroSettings');
+  if (savedSettings) {
+    const parsed = JSON.parse(savedSettings);
+    timerSettings = { ...timerSettings, ...parsed };
+    
+    // Update input values
+    if (focusTimeInput) focusTimeInput.value = timerSettings.focusTime;
+    if (shortBreakInput) shortBreakInput.value = timerSettings.shortBreak;
+    if (longBreakInput) longBreakInput.value = timerSettings.longBreak;
+    if (cyclesInput) cyclesInput.value = timerSettings.totalCycles;
+    if (simpleTimerInput) simpleTimerInput.value = timerSettings.simpleTimer;
+    if (sleepTimerInput) sleepTimerInput.value = timerSettings.sleepTimer;
+    
+    // Update goal settings
+    if (showGoalCheckbox) showGoalCheckbox.checked = timerSettings.showGoal;
+    if (goalInput) goalInput.value = timerSettings.sessionGoal;
+    updateGoalDisplay();
+    
+    // Detect and update preset
+    detectCurrentPreset();
+    updatePresetButtons();
+  }
+}
+
+// Save settings to localStorage
+function saveTimerSettingsToStorage() {
+  console.log('Save button clicked');
+  
+  // Get values from inputs
+  const newFocusTime = parseInt(focusTimeInput?.value) || 25;
+  const newShortBreak = parseInt(shortBreakInput?.value) || 5;
+  const newLongBreak = parseInt(longBreakInput?.value) || 15;
+  const newTotalCycles = parseInt(cyclesInput?.value) || 4;
+  const newSimpleTimer = parseInt(simpleTimerInput?.value) || 25;
+  const newSleepTimer = parseInt(sleepTimerInput?.value) || 30;
+  const newSelectedToneId = toneSelect?.value || null;
+  const newShowGoal = showGoalCheckbox?.checked ?? true;
+  const newSessionGoal = goalInput?.value || '';
+  
+  // Update settings
+  timerSettings.focusTime = newFocusTime;
+  timerSettings.shortBreak = newShortBreak;
+  timerSettings.longBreak = newLongBreak;
+  timerSettings.totalCycles = newTotalCycles;
+  timerSettings.simpleTimer = newSimpleTimer;
+  timerSettings.sleepTimer = newSleepTimer;
+  timerSettings.selectedToneId = newSelectedToneId;
+  timerSettings.showGoal = newShowGoal;
+  timerSettings.sessionGoal = newSessionGoal;
+  
+  // Update current tone
+  if (newSelectedToneId) {
+    currentTone = availableTones.find(tone => tone.id === newSelectedToneId);
+  } else {
+    currentTone = null;
+  }
+  
+  // Save to localStorage
+  localStorage.setItem('pomodoroSettings', JSON.stringify(timerSettings));
+  
+  // Refresh all timers immediately
+  if (timerType === 'pomodoro') {
+    setTimeForMode();
+    createCycleDots();
+  } else if (timerType === 'simple') {
+    timeLeft = timerSettings.simpleTimer * 60;
+    totalTime = timerSettings.simpleTimer * 60;
+  } else if (timerType === 'sleep') {
+    timeLeft = timerSettings.sleepTimer * 60;
+    totalTime = timerSettings.sleepTimer * 60;
+  }
+  
+  // Update display and goal visibility
+  updateTimerDisplay();
+  updateGoalDisplay();
+  
+  // Close the settings modal
+  closeTimerSettings();
+}
+
+// Update goal display visibility
+function updateGoalDisplay() {
+  if (!goalSection) return;
+  
+  if (timerSettings.showGoal) {
+    goalSection.classList.remove('hidden');
+  } else {
+    goalSection.classList.add('hidden');
+  }
+}
+
+// Load tones from Supabase
+async function loadTones() {
+  console.log('Loading tones from Supabase...');
+  try {
+    if (!supabase) {
+      console.log('Supabase not available');
+      return;
+    }
+    
+    const { data, error } = await supabase
+      .from('tone')
+      .select('*');
+    
+    if (error) throw error;
+    
+    availableTones = data || [];
+    console.log('Tones loaded:', availableTones);
+    populateToneSelect();
+    
+    // Set current tone based on saved selection
+    if (timerSettings.selectedToneId) {
+      currentTone = availableTones.find(tone => tone.id === timerSettings.selectedToneId);
+      console.log('Current tone set:', currentTone);
+    }
+  } catch (error) {
+    console.error('Failed to load tones:', error);
+  }
+}
+
+// Populate tone select dropdown
+function populateToneSelect() {
+  if (!toneSelect) return;
+  
+  // Clear existing options
+  toneSelect.innerHTML = '<option value="">No Sound</option>';
+  
+  // Add tone options
+  availableTones.forEach(tone => {
+    const option = document.createElement('option');
+    option.value = tone.id;
+    option.textContent = tone.name;
+    if (tone.id === timerSettings.selectedToneId) {
+      option.selected = true;
+    }
+    toneSelect.appendChild(option);
+  });
+  
+  console.log('Tone select populated with', availableTones.length, 'tones');
+}
+
+// Play sound based on timer type and completion
+async function playCompletionSound(completionType) {
+  if (!currentTone) return;
+  
+  let soundUrl = '';
+  
+  switch (completionType) {
+    case 'focus':
+      soundUrl = currentTone.focus_timer_url;
+      break;
+    case 'short-break':
+      soundUrl = currentTone.short_break_url;
+      break;
+    case 'long-break':
+      soundUrl = currentTone.long_break_url;
+      break;
+    case 'cycle-complete':
+      soundUrl = currentTone.cycle_complete_url || currentTone.short_break_url;
+      break;
+    case 'countdown':
+      soundUrl = currentTone.countdown_timer_url;
+      break;
+    case 'sleep':
+      soundUrl = currentTone.sleep_timer_url;
+      break;
+  }
+  
+  if (soundUrl) {
+    try {
+      const audio = new Audio(soundUrl);
+      audio.volume = 0.7;
+      await audio.play();
+    } catch (error) {
+      console.error('Failed to play sound:', error);
+    }
+  }
+}
+
+// Play focus timer sound preview
+async function playFocusSound() {
+  if (!toneSelect || !availableTones.length) return;
+  
+  const selectedToneId = toneSelect.value;
+  if (!selectedToneId) return;
+  
+  const selectedTone = availableTones.find(tone => tone.id === selectedToneId);
+  if (!selectedTone || !selectedTone.focus_timer_url) return;
+  
+  try {
+    if (playSoundBtn) playSoundBtn.disabled = true;
+    const audio = new Audio(selectedTone.focus_timer_url);
+    audio.volume = 0.7;
+    await audio.play();
+  } catch (error) {
+    console.error('Failed to play focus sound:', error);
+  } finally {
+    if (playSoundBtn) playSoundBtn.disabled = false;
+  }
+}
+
+// Create cycle dots
+function createCycleDots() {
+  if (!cyclesContainer) return;
+  
+  cyclesContainer.innerHTML = '';
+  cycleDots = [];
+  
+  for (let i = 0; i < timerSettings.totalCycles; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'cycle-dot';
+    cyclesContainer.appendChild(dot);
+    cycleDots.push(dot);
+  }
+  
+  updateCycleDots();
+}
+
+// Update cycle dots display
+function updateCycleDots() {
+  cycleDots.forEach((dot, index) => {
+    dot.className = 'cycle-dot';
+    
+    if (index < Math.floor(currentCycle)) {
+      dot.classList.add('full-filled');
+    } else if (index === Math.floor(currentCycle) && cyclePhase === 'short-break') {
+      dot.classList.add('half-filled');
+    }
+  });
+}
+
+// Get current time based on mode and settings
+function getCurrentTime() {
+  switch (timerMode) {
+    case 'focus':
+      return timerSettings.focusTime * 60;
+    case 'short-break':
+      return timerSettings.shortBreak * 60;
+    case 'long-break':
+      return timerSettings.longBreak * 60;
+    default:
+      return timerSettings.focusTime * 60;
+  }
+}
+
+// Set time based on current mode
+function setTimeForMode() {
+  const newTime = getCurrentTime();
+  timeLeft = newTime;
+  totalTime = newTime;
+}
+
+// Format time display
+function formatTime(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  
+  if (hours > 0) {
+    return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  } else {
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+}
+
+// Parse time string to seconds
+function parseTime(timeString) {
+  const parts = timeString.split(':').map(Number);
+  
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  } else if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  } else if (parts.length === 1) {
+    return parts[0] * 60;
+  }
+  
+  return 0;
+}
+
+// Update timer display
+function updateTimerDisplay() {
+  if (!timeDisplay || !progressBar) return;
+  
+  if (timerType === 'endless') {
+    timeDisplay.textContent = formatTime(elapsedTime);
+    progressBar.style.width = '0%';
+    if (cyclesContainer) cyclesContainer.classList.add('hidden');
+  } else {
+    timeDisplay.textContent = formatTime(timeLeft);
+    const progressPercent = ((totalTime - timeLeft) / totalTime) * 100;
+    progressBar.style.width = `${progressPercent}%`;
+    
+    if (timerType === 'pomodoro') {
+      if (cyclesContainer) cyclesContainer.classList.remove('hidden');
+      updateCycleDots();
+    } else {
+      if (cyclesContainer) cyclesContainer.classList.add('hidden');
+    }
+  }
+  
+  // Toggle button visibility
+  if (isTimerRunning) {
+    if (startBtn) startBtn.style.display = 'none';
+    if (pauseBtn) pauseBtn.classList.add('visible');
+    if (restartBtn) restartBtn.classList.add('visible');
+  } else {
+    if (startBtn) startBtn.style.display = 'flex';
+    if (pauseBtn) pauseBtn.classList.remove('visible');
+    if (restartBtn) restartBtn.classList.remove('visible');
+  }
+}
+
+// Debounce timer controls to prevent race conditions
+let timerControlDebounce = false;
+
+// Toggle timer state
+function toggleTimerState() {
+  // Prevent rapid clicking
+  if (timerControlDebounce) return;
+  timerControlDebounce = true;
+  setTimeout(() => { timerControlDebounce = false; }, 300);
+  
+  if (isTimerRunning) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    isTimerRunning = false;
+    enableControls();
+  } else {
+    if (timerType !== 'endless' && timeLeft <= 0) resetTimer();
+    
+    timerInterval = setInterval(() => {
+      if (timerType === 'endless') {
+        elapsedTime++;
+        updateTimerDisplay();
+      } else {
+        timeLeft--;
+        updateTimerDisplay();
+        
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          isTimerRunning = false;
+          
+          if (timerType === 'pomodoro') {
+            handlePomodoroComplete();
+          } else {
+            // Record simple timer completion as focus time
+            if (timerType === 'simple') {
+              const simpleMinutes = Math.round(timerSettings.simpleTimer);
+              recordTimerData('focus', simpleMinutes, true);
+            } else if (timerType === 'sleep') {
+              const sleepMinutes = Math.round(timerSettings.sleepTimer);
+              recordTimerData('focus', sleepMinutes, true);
+            }
+            
+            playCompletionSound('countdown');
+            enableControls();
+          }
+        }
+      }
+    }, 1000);
+    
+    isTimerRunning = true;
+    disableControls();
+  }
+  
+  updateTimerDisplay();
+}
+
+// Handle Pomodoro cycle completion
+async function handlePomodoroComplete() {
+  if (cyclePhase === 'focus') {
+    // Record focus time
+    const focusMinutes = Math.round(timerSettings.focusTime);
+    recordTimerData('focus', focusMinutes, true);
+    
+    await playCompletionSound('focus');
+    cyclePhase = 'short-break';
+    toggleTimerMode('short-break');
+    toggleTimerState(); // Auto-start short break
+  } else if (cyclePhase === 'short-break') {
+    // Record break time
+    const breakMinutes = Math.round(timerSettings.shortBreak);
+    recordTimerData('break', breakMinutes, true);
+    
+    currentCycle++;
+    
+    if (currentCycle >= timerSettings.totalCycles) {
+      // Record completed session
+      recordTimerData('session', 1, true);
+      
+      await playCompletionSound('cycle-complete');
+      cyclePhase = 'long-break';
+      toggleTimerMode('long-break');
+      toggleTimerState(); // Auto-start long break
+    } else {
+      await playCompletionSound('short-break');
+      cyclePhase = 'focus';
+      toggleTimerMode('focus');
+      toggleTimerState(); // Auto-start next focus
+    }
+  } else if (cyclePhase === 'long-break') {
+    // Record long break time
+    const longBreakMinutes = Math.round(timerSettings.longBreak);
+    recordTimerData('break', longBreakMinutes, true);
+    
+    await playCompletionSound('long-break');
+    currentCycle = 0;
+    cyclePhase = 'focus';
+    toggleTimerMode('focus');
+    enableControls();
+  }
+  
+  updateCycleDots();
+}
+
+// Reset timer
+function resetTimer() {
+  // Prevent rapid clicking
+  if (timerControlDebounce) return;
+  timerControlDebounce = true;
+  setTimeout(() => { timerControlDebounce = false; }, 300);
+  
+  clearInterval(timerInterval);
+  timerInterval = null;
+  isTimerRunning = false;
+  
+  if (timerType === 'endless') {
+    elapsedTime = 0;
+  } else if (timerType === 'pomodoro') {
+    currentCycle = 0;
+    cyclePhase = 'focus';
+    timerMode = 'focus';
+    setTimeForMode();
+  } else if (timerType === 'simple') {
+    timeLeft = timerSettings.simpleTimer * 60;
+    totalTime = timerSettings.simpleTimer * 60;
+  }
+  
+  updateTimerDisplay();
+  enableControls();
+  
+  // Update mode buttons
+  modeButtons.forEach(btn => {
+    if (btn.dataset.mode === timerMode) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+}
+
+// Toggle mode (only for pomodoro)
+function toggleTimerMode(newMode) {
+  if (newMode === timerMode || timerType !== 'pomodoro') return;
+  
+  timerMode = newMode;
+  clearInterval(timerInterval);
+  timerInterval = null;
+  isTimerRunning = false;
+  
+  setTimeForMode();
+  updateTimerDisplay();
+  enableControls();
+  
+  // Update active button
+  modeButtons.forEach(btn => {
+    if (btn.dataset.mode === timerMode) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+}
+
+// Change timer type
+function changeTimerType(newType) {
+  if (newType === timerType) return;
+  
+  // Handle settings dot click
+  if (newType === 'settings') {
+    openTimerSettings();
+    return;
+  }
+  
+  timerType = newType;
+  clearInterval(timerInterval);
+  timerInterval = null;
+  isTimerRunning = false;
+  
+  // Reset cycles when changing timer type
+  currentCycle = 0;
+  cyclePhase = 'focus';
+  
+  // Update timer settings based on type
+  if (timerType === 'pomodoro') {
+    if (modeSwitcher) modeSwitcher.classList.remove('hidden');
+    timerMode = 'focus';
+    setTimeForMode();
+    createCycleDots();
+  } else if (timerType === 'simple') {
+    if (modeSwitcher) modeSwitcher.classList.add('hidden');
+    timeLeft = timerSettings.simpleTimer * 60;
+    totalTime = timerSettings.simpleTimer * 60;
+  } else if (timerType === 'sleep') {
+    if (modeSwitcher) modeSwitcher.classList.add('hidden');
+    timeLeft = timerSettings.sleepTimer * 60;
+    totalTime = timerSettings.sleepTimer * 60;
+  } else if (timerType === 'endless') {
+    if (modeSwitcher) modeSwitcher.classList.add('hidden');
+    elapsedTime = 0;
+  }
+  
+  // Update active dot
+  timerTypeDots.forEach(dot => {
+    if (dot.dataset.timerType === timerType) {
+      dot.classList.add('active');
+    } else {
+      dot.classList.remove('active');
+    }
+  });
+  
+  // Update mode buttons
+  modeButtons.forEach(btn => {
+    if (btn.dataset.mode === 'focus') {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+  
+  updateTimerDisplay();
+  enableControls();
+}
+
+// Adjust time
+function adjustTime(amount) {
+  if (isTimerRunning || timerType === 'endless') return;
+  
+  timeLeft = Math.max(0, timeLeft + amount);
+  totalTime = timeLeft;
+  
+  // Update settings if in pomodoro mode or sleep mode
+  if (timerType === 'pomodoro') {
+    const minutes = Math.round(timeLeft / 60);
+    if (timerMode === 'focus') {
+      timerSettings.focusTime = minutes;
+      if (focusTimeInput) focusTimeInput.value = minutes;
+    } else if (timerMode === 'short-break') {
+      timerSettings.shortBreak = minutes;
+      if (shortBreakInput) shortBreakInput.value = minutes;
+    } else if (timerMode === 'long-break') {
+      timerSettings.longBreak = minutes;
+      if (longBreakInput) longBreakInput.value = minutes;
+    }
+  } else if (timerType === 'simple') {
+    const minutes = Math.round(timeLeft / 60);
+    timerSettings.simpleTimer = minutes;
+    if (simpleTimerInput) simpleTimerInput.value = minutes;
+  } else if (timerType === 'sleep') {
+    const minutes = Math.round(timeLeft / 60);
+    timerSettings.sleepTimer = minutes;
+    if (sleepTimerInput) sleepTimerInput.value = minutes;
+  }
+  
+  updateTimerDisplay();
+}
+
+// Handle time display click for editing
+function handleTimeClick() {
+  if (isTimerRunning || isTimerEditing || timerType === 'endless') return;
+  
+  isTimerEditing = true;
+  
+  // Replace display with input
+  const currentTimeText = timeDisplay.textContent;
+  timeDisplay.innerHTML = `<input type="text" class="time-input" value="${currentTimeText}" maxlength="8">`;
+  
+  const timeInput = document.querySelector('.time-input');
+  timeInput.focus();
+  timeInput.select();
+  
+  // Handle input blur
+  timeInput.addEventListener('blur', finishEditing);
+  
+  // Handle enter key
+  timeInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      finishEditing();
+    }
+  });
+  
+  // Handle input
+  timeInput.addEventListener('input', (e) => {
+    // Allow only numbers and colon
+    e.target.value = e.target.value.replace(/[^0-9:]/g, '');
+  });
+}
+
+// Finish editing time
+function finishEditing() {
+  const timeInput = document.querySelector('.time-input');
+  if (!timeInput) return;
+  
+  let timeValue = timeInput.value;
+  
+  // Process numeric-only input
+  if (!timeValue.includes(':')) {
+    const minutes = parseInt(timeValue, 10) || 0;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    
+    if (hours > 0) {
+      timeValue = `${hours}:${mins.toString().padStart(2, '0')}:00`;
+    } else {
+      timeValue = `${mins.toString().padStart(2, '0')}:00`;
+    }
+  } else if (timeValue.split(':').length === 2) {
+    const [mins, secs] = timeValue.split(':');
+    timeValue = `${mins.padStart(2, '0')}:${secs.padStart(2, '0')}`;
+  } else if (timeValue.split(':').length === 3) {
+    const [hours, mins, secs] = timeValue.split(':');
+    timeValue = `${hours}:${mins.padStart(2, '0')}:${secs.padStart(2, '0')}`;
+  }
+  
+  // Parse and update time
+  timeLeft = parseTime(timeValue);
+  totalTime = timeLeft;
+  
+  // Update settings
+  if (timerType === 'pomodoro') {
+    const minutes = Math.round(timeLeft / 60);
+    if (timerMode === 'focus') {
+      timerSettings.focusTime = minutes;
+      if (focusTimeInput) focusTimeInput.value = minutes;
+    } else if (timerMode === 'short-break') {
+      timerSettings.shortBreak = minutes;
+      if (shortBreakInput) shortBreakInput.value = minutes;
+    } else if (timerMode === 'long-break') {
+      timerSettings.longBreak = minutes;
+      if (longBreakInput) longBreakInput.value = minutes;
+    }
+  } else if (timerType === 'simple') {
+    const minutes = Math.round(timeLeft / 60);
+    timerSettings.simpleTimer = minutes;
+    if (simpleTimerInput) simpleTimerInput.value = minutes;
+  } else if (timerType === 'sleep') {
+    const minutes = Math.round(timeLeft / 60);
+    timerSettings.sleepTimer = minutes;
+    if (sleepTimerInput) sleepTimerInput.value = minutes;
+  }
+  
+  // Restore display
+  timeDisplay.innerHTML = '';
+  timeDisplay.textContent = formatTime(timeLeft);
+  isTimerEditing = false;
+}
+
+// Settings functions
+function openTimerSettings() {
+  // Update input values with current settings
+  if (focusTimeInput) focusTimeInput.value = timerSettings.focusTime;
+  if (shortBreakInput) shortBreakInput.value = timerSettings.shortBreak;
+  if (longBreakInput) longBreakInput.value = timerSettings.longBreak;
+  if (cyclesInput) cyclesInput.value = timerSettings.totalCycles;
+  if (simpleTimerInput) simpleTimerInput.value = timerSettings.simpleTimer;
+  if (sleepTimerInput) sleepTimerInput.value = timerSettings.sleepTimer;
+  
+  // Update goal settings
+  if (showGoalCheckbox) showGoalCheckbox.checked = timerSettings.showGoal;
+  
+  // Update tone selection
+  if (toneSelect) {
+    toneSelect.value = timerSettings.selectedToneId || '';
+  }
+  
+  // Detect current preset and update buttons
+  detectCurrentPreset();
+  updatePresetButtons();
+  
+  if (timerSettingsModal) timerSettingsModal.classList.add('open');
+}
+
+function closeTimerSettings() {
+  if (timerSettingsModal) timerSettingsModal.classList.remove('open');
+}
+
+// Disable controls during running state
+function disableControls() {
+  if (decreaseBtn) decreaseBtn.classList.add('disabled');
+  if (increaseBtn) increaseBtn.classList.add('disabled');
+  modeButtons.forEach(btn => btn.classList.add('disabled'));
+  if (timerDisplay) timerDisplay.classList.add('disabled');
+  timerTypeDots.forEach(dot => dot.parentElement?.classList.add('disabled'));
+}
+
+// Enable controls when not running
+function enableControls() {
+  if (decreaseBtn) decreaseBtn.classList.remove('disabled');
+  if (increaseBtn) increaseBtn.classList.remove('disabled');
+  modeButtons.forEach(btn => btn.classList.remove('disabled'));
+  if (timerDisplay) timerDisplay.classList.remove('disabled');
+  timerTypeDots.forEach(dot => dot.parentElement?.classList.remove('disabled'));
+}
+
+// --- Insights Dashboard Functionality ---
+let insightsData = {
+  focus: {}, // Date -> minutes
+  break: {}, // Date -> minutes  
+  sessions: {} // Date -> count
+};
+
+let currentPeriod = 'month';
+let currentDate = new Date();
+let currentChart = 'focus';
+
+// Initialize insights dashboard
+function initializeInsights() {
+  console.log('Initializing insights dashboard...');
+  loadInsightsData();
+  addSampleData(); // Add some sample data for testing
+  setupInsightsEventListeners();
+  updateInsightsDisplay();
+  console.log('Insights dashboard initialized');
+}
+
+// Add sample data for testing (remove this later)
+function addSampleData() {
+  // Clear existing data first
+  insightsData = { focus: {}, break: {}, sessions: {} };
+  
+  const today = new Date();
+  
+  // Add data for the past 30 days
+  for (let i = 0; i < 30; i++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    const dateStr = formatDate(date);
+    
+    // Add some random data
+    insightsData.focus[dateStr] = Math.floor(Math.random() * 180) + 30; // 30-210 minutes
+    insightsData.break[dateStr] = Math.floor(Math.random() * 60) + 10; // 10-70 minutes
+    insightsData.sessions[dateStr] = Math.floor(Math.random() * 5) + 1; // 1-6 sessions
+  }
+  
+  saveInsightsData();
+  console.log('Sample data added:', insightsData);
+  
+  // Check if elements exist
+  setTimeout(() => {
+    console.log('Period toggle:', document.querySelector('.insights-period-toggle'));
+    console.log('Chart tabs:', document.querySelector('.insights-chart-tabs'));
+    console.log('Chart container:', document.querySelector('.insights-chart-container'));
+    console.log('Download button:', document.querySelector('.insights-download-btn'));
+  }, 500);
+}
+
+// Load insights data from localStorage
+function loadInsightsData() {
+  const saved = localStorage.getItem('focusInsightsData');
+  if (saved) {
+    insightsData = JSON.parse(saved);
+  }
+}
+
+// Save insights data to localStorage
+function saveInsightsData() {
+  localStorage.setItem('focusInsightsData', JSON.stringify(insightsData));
+}
+
+// Record timer data (called from timer functions)
+function recordTimerData(type, minutes, isCompleted = true) {
+  const today = formatDate(new Date());
+  
+  if (type === 'focus') {
+    insightsData.focus[today] = (insightsData.focus[today] || 0) + minutes;
+  } else if (type === 'break') {
+    insightsData.break[today] = (insightsData.break[today] || 0) + minutes;
+  } else if (type === 'session' && isCompleted) {
+    insightsData.sessions[today] = (insightsData.sessions[today] || 0) + 1;
+  }
+  
+  saveInsightsData();
+  updateInsightsDisplay();
+}
+
+// Setup event listeners for insights
+function setupInsightsEventListeners() {
+  // Period toggle
+  document.querySelectorAll('.period-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentPeriod = btn.dataset.period;
+      updateInsightsDisplay();
+    });
+  });
+  
+  // Period navigation
+  document.getElementById('period-prev')?.addEventListener('click', () => {
+    if (currentPeriod === 'week') {
+      currentDate.setDate(currentDate.getDate() - 7);
+    } else {
+      currentDate.setMonth(currentDate.getMonth() - 1);
+    }
+    updateInsightsDisplay();
+  });
+  
+  document.getElementById('period-next')?.addEventListener('click', () => {
+    if (currentPeriod === 'week') {
+      currentDate.setDate(currentDate.getDate() + 7);
+    } else {
+      currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+    updateInsightsDisplay();
+  });
+  
+  // Chart tabs
+  document.querySelectorAll('.chart-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      currentChart = tab.dataset.chart;
+      updateChart();
+    });
+  });
+  
+  // Download report
+  document.getElementById('download-report')?.addEventListener('click', downloadReport);
+}
+
+// Update insights display
+function updateInsightsDisplay() {
+  console.log('Updating insights display...');
+  updateStatsCards();
+  updatePeriodDisplay();
+  updateChart();
+  console.log('Insights display updated');
+}
+
+// Update top stats cards
+function updateStatsCards() {
+  const { startDate, endDate } = getPeriodRange();
+  
+  let totalFocus = 0;
+  let totalBreak = 0;
+  let totalSessions = 0;
+  
+  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    const dateStr = formatDate(d);
+    totalFocus += insightsData.focus[dateStr] || 0;
+    totalBreak += insightsData.break[dateStr] || 0;
+    totalSessions += insightsData.sessions[dateStr] || 0;
+  }
+  
+  document.getElementById('insights-focus-time').textContent = formatTimeDisplay(totalFocus);
+  document.getElementById('insights-break-time').textContent = formatTimeDisplay(totalBreak);
+  document.getElementById('insights-session-count').textContent = totalSessions.toString();
+}
+
+// Update period display
+function updatePeriodDisplay() {
+  const periodMain = document.getElementById('period-main');
+  const periodSub = document.getElementById('period-sub');
+  
+  if (currentPeriod === 'week') {
+    const { startDate, endDate } = getPeriodRange();
+    const weekNum = getWeekNumber(currentDate);
+    periodMain.textContent = `Week ${weekNum}`;
+    periodSub.textContent = `${formatDateShort(startDate)}—${formatDateShort(endDate)}`;
+  } else {
+    periodMain.textContent = currentDate.toLocaleDateString('en-US', { month: 'long' });
+    periodSub.textContent = '';
+  }
+}
+
+// Update chart
+function updateChart() {
+  console.log('Updating chart...');
+  const chartContainer = document.getElementById('insights-chart');
+  if (!chartContainer) {
+    console.error('Chart container not found!');
+    return;
+  }
+  
+  console.log('Current period:', currentPeriod, 'Current chart:', currentChart);
+  
+  if (currentPeriod === 'week') {
+    renderWeekChart(chartContainer);
+  } else {
+    renderMonthChart(chartContainer);
+  }
+}
+
+// Render week chart
+function renderWeekChart(container) {
+  const { startDate, endDate } = getPeriodRange();
+  const data = getCurrentChartData();
+  const maxValue = Math.max(...Object.values(data), 1);
+  
+  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  
+  let html = '<div class="week-chart">';
+  
+  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    const dateStr = formatDate(d);
+    const value = data[dateStr] || 0;
+    const height = (value / maxValue) * 100;
+    const dayName = weekDays[d.getDay()];
+    
+    let timeDisplay = '';
+    if (value > 0) {
+      if (currentChart === 'session') {
+        timeDisplay = value.toString();
+      } else {
+        timeDisplay = formatTimeShort(value);
+      }
+    }
+    
+    html += `
+      <div class="week-bar-container">
+        <div class="week-bar-time">${timeDisplay}</div>
+        <div class="week-bar">
+          <div class="week-bar-fill" style="height: ${height}%"></div>
+        </div>
+        <div class="week-bar-label">${dayName}</div>
+      </div>
+    `;
+  }
+  
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// Render month chart
+function renderMonthChart(container) {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startDate = new Date(firstDay);
+  startDate.setDate(startDate.getDate() - firstDay.getDay()); // Start from Sunday
+  
+  const data = getCurrentChartData();
+  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  
+  // Add day labels first
+  let html = '<div class="month-labels">';
+  weekDays.forEach(day => {
+    html += `<div class="month-label">${day}</div>`;
+  });
+  html += '</div>';
+  
+  html += '<div class="month-chart">';
+  
+  // Generate calendar grid
+  for (let week = 0; week < 6; week++) {
+    for (let day = 0; day < 7; day++) {
+      const currentDay = new Date(startDate);
+      currentDay.setDate(startDate.getDate() + (week * 7) + day);
+      
+      if (currentDay > lastDay && week > 4) break;
+      
+      const dateStr = formatDate(currentDay);
+      const value = data[dateStr] || 0;
+      const isCurrentMonth = currentDay.getMonth() === month;
+      const hasData = value > 0 && isCurrentMonth;
+      
+      let timeDisplay = '';
+      if (hasData) {
+        if (currentChart === 'session') {
+          timeDisplay = value.toString();
+        } else {
+          timeDisplay = formatTimeShort(value);
+        }
+      }
+      
+      html += `
+        <div class="month-day ${hasData ? 'has-data' : ''}" style="opacity: ${isCurrentMonth ? 1 : 0.3}">
+          ${timeDisplay ? `<div class="month-day-time">${timeDisplay}</div>` : ''}
+          <div class="month-day-number">${currentDay.getDate()}</div>
+        </div>
+      `;
+    }
+  }
+  
+  html += '</div>';
+  
+  container.innerHTML = html;
+}
+
+// Get current chart data
+function getCurrentChartData() {
+  switch (currentChart) {
+    case 'focus':
+      return insightsData.focus;
+    case 'break':
+      return insightsData.break;
+    case 'session':
+      return insightsData.sessions;
+    default:
+      return {};
+  }
+}
+
+// Get period range
+function getPeriodRange() {
+  if (currentPeriod === 'week') {
+    const startDate = new Date(currentDate);
+    startDate.setDate(currentDate.getDate() - currentDate.getDay()); // Start of week (Sunday)
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6); // End of week (Saturday)
+    return { startDate, endDate };
+  } else {
+    const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    return { startDate, endDate };
+  }
+}
+
+// Download report as CSV
+function downloadReport() {
+  const { startDate, endDate } = getPeriodRange();
+  
+  let csv = 'Date,Focus Time (minutes),Break Time (minutes),Sessions\n';
+  
+  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    const dateStr = formatDate(d);
+    const focus = insightsData.focus[dateStr] || 0;
+    const breakTime = insightsData.break[dateStr] || 0;
+    const sessions = insightsData.sessions[dateStr] || 0;
+    
+    csv += `${dateStr},${focus},${breakTime},${sessions}\n`;
+  }
+  
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `focus-report-${formatDate(new Date())}.csv`;
+  a.click();
+  window.URL.revokeObjectURL(url);
+}
+
+// Utility functions
+function formatDate(date) {
+  return date.toISOString().split('T')[0];
+}
+
+function formatDateShort(date) {
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function formatTimeDisplay(minutes) {
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+}
+
+function formatTimeShort(minutes) {
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${hours}h ${mins}m`;
+}
+
+function getWeekNumber(date) {
+  const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+  const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
+  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+}
+
+// Timer and insights initialization will be called from main DOMContentLoaded
+function initializeTimerAndInsights() {
+  setTimeout(() => {
+    if (typeof initializeTimer === 'function') {
+      initializeTimer();
+    }
+    if (typeof initializeInsights === 'function') {
+      initializeInsights();
+    }
+    // Initialize navigation dropdown functionality
+    initializeNavDropdowns();
+  }, 100); // Small delay to ensure all elements are available
+}
+
+// Initialize navigation dropdown functionality
+function initializeNavDropdowns() {
+  const leftNavBtn = document.getElementById('left-nav-btn');
+  const rightNavBtn = document.getElementById('right-nav-btn');
+  const leftDropdownMenu = document.getElementById('left-dropdown-menu');
+  const rightDropdownMenu = document.getElementById('right-dropdown-menu');
+
+  // Populate dropdown menus with content
+  populateDropdownMenus();
+
+  // Left dropdown (Plus+)
+  if (leftNavBtn && leftDropdownMenu) {
+    leftNavBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      
+      // Close right dropdown if open
+      const rightDropdown = document.getElementById('right-dropdown');
+      if (rightDropdown) {
+        rightDropdown.classList.remove('active');
+      }
+      
+      // Toggle left dropdown
+      const leftDropdown = document.getElementById('left-dropdown');
+      if (leftDropdown) {
+        leftDropdown.classList.toggle('active');
+      }
+    });
+  }
+
+  // Right dropdown (More)
+  if (rightNavBtn && rightDropdownMenu) {
+    rightNavBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      
+      // Close left dropdown if open
+      const leftDropdown = document.getElementById('left-dropdown');
+      if (leftDropdown) {
+        leftDropdown.classList.remove('active');
+      }
+      
+      // Toggle right dropdown
+      const rightDropdown = document.getElementById('right-dropdown');
+      if (rightDropdown) {
+        rightDropdown.classList.toggle('active');
+      }
+    });
+  }
+
+  // Close dropdowns when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.dropdown')) {
+      const leftDropdown = document.getElementById('left-dropdown');
+      const rightDropdown = document.getElementById('right-dropdown');
+      if (leftDropdown) leftDropdown.classList.remove('active');
+      if (rightDropdown) rightDropdown.classList.remove('active');
+    }
+  });
+}
+
+// Populate dropdown menus with content
+function populateDropdownMenus() {
+  const leftDropdownMenu = document.getElementById('left-dropdown-menu');
+  const rightDropdownMenu = document.getElementById('right-dropdown-menu');
+
+  // Left dropdown (Plus+) menu items
+  if (leftDropdownMenu) {
+    leftDropdownMenu.innerHTML = `
+      <div class="dropdown-item" data-action="upgrade">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L15.09 8.26L22 9L17 14L18.18 21L12 17.77L5.82 21L7 14L2 9L8.91 8.26L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Upgrade to Pro</span>
+      </div>
+      <div class="dropdown-item" data-action="login">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M15 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10 17L15 12L10 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M15 12H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Sign In</span>
+      </div>
+      <div class="dropdown-item" data-action="signup">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 21V19C16 17.9391 15.5786 16.9217 14.8284 16.1716C14.0783 15.4214 13.0609 15 12 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="8.5" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M20 8V14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M23 11H17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Create Account</span>
+      </div>
+    `;
+
+    // Add event listeners for left dropdown items
+    leftDropdownMenu.addEventListener('click', function(e) {
+      const dropdownItem = e.target.closest('.dropdown-item');
+      if (dropdownItem) {
+        const action = dropdownItem.getAttribute('data-action');
+        handleLeftDropdownAction(action);
+        leftDropdownMenu.classList.remove('active');
+      }
+    });
+  }
+
+  // Right dropdown (More) menu items
+  if (rightDropdownMenu) {
+    rightDropdownMenu.innerHTML = `
+      <div class="dropdown-item" data-action="stats">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M9 11H7a2 2 0 00-2 2v4a2 2 0 002 2h2a2 2 0 002-2v-4a2 2 0 00-2-2zM21 11h-2a2 2 0 00-2 2v4a2 2 0 002 2h2a2 2 0 002-2v-4a2 2 0 00-2-2zM15 3h-2a2 2 0 00-2 2v12a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Stats</span>
+      </div>
+      <div class="dropdown-item" data-action="todo">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M9 11L12 14L22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M21 12V19a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Todo</span>
+      </div>
+    `;
+
+    // Add event listeners for right dropdown items
+    rightDropdownMenu.addEventListener('click', function(e) {
+      const dropdownItem = e.target.closest('.dropdown-item');
+      if (dropdownItem) {
+        const action = dropdownItem.getAttribute('data-action');
+        handleRightDropdownAction(action);
+        rightDropdownMenu.classList.remove('active');
+      }
+    });
+  }
+}
+
+// Handle left dropdown actions
+function handleLeftDropdownAction(action) {
+  switch(action) {
+    case 'upgrade':
+      // Open pricing modal
+      const pricingModal = document.getElementById('pricing-modal');
+      if (pricingModal) {
+        pricingModal.classList.remove('hidden');
+        pricingModal.style.display = 'flex';
+        // Apply glass effect styling
+        applyGlassPricingModalStyles();
+        // Initialize pricing modal functionality
+        initializePricingModal();
+        // Apply compact styling to pricing options
+        applyCompactPricingStyles();
+      }
+      break;
+    case 'login':
+      // Open auth modal in login mode
+      const authModal = document.getElementById('auth-modal');
+      if (authModal) {
+        authModal.classList.remove('hidden');
+        authModal.style.display = 'flex';
+        // Set to login mode if needed
+        const signupBtn = document.getElementById('signup-btn');
+        if (signupBtn) {
+          signupBtn.textContent = 'Sign In';
+        }
+      }
+      break;
+    case 'signup':
+      // Open auth modal in signup mode  
+      const signupModal = document.getElementById('auth-modal');
+      if (signupModal) {
+        signupModal.classList.remove('hidden');
+        signupModal.style.display = 'flex';
+        // Set to signup mode
+        const signupBtn = document.getElementById('signup-btn');
+        if (signupBtn) {
+          signupBtn.textContent = 'Pay $100.99 & Sign up';
+        }
+      }
+      break;
+  }
+}
+
+// Handle right dropdown actions
+function handleRightDropdownAction(action) {
+  switch(action) {
+    case 'stats':
+      // Directly open stats modal
+      const statsModal = document.getElementById('stats-modal');
+      if (statsModal) {
+        // Close any open bottom sheets first
+        if (typeof closeAllBottomSheets === 'function') {
+          closeAllBottomSheets();
+        }
+        
+        // Open stats modal
+        statsModal.classList.remove('hidden');
+        requestAnimationFrame(() => {
+          statsModal.classList.add('active');
+        });
+      }
+      break;
+    case 'todo':
+      // Trigger the existing todo functionality
+      const openTodoBtn = document.getElementById('open-todo-btn');
+      if (openTodoBtn) {
+        openTodoBtn.click();
+      } else {
+        // Fallback: directly open todo sheet
+        const todoSheet = document.getElementById('todo-sheet');
+        if (todoSheet) {
+          if (typeof closeAllBottomSheets === 'function') closeAllBottomSheets();
+          todoSheet.classList.remove('hidden');
+          requestAnimationFrame(() => {
+            todoSheet.classList.add('active');
+          });
+        }
+      }
+      break;
+  }
+}
+
+// Initialize pricing modal functionality
+function initializePricingModal() {
+  const pricingOptions = document.querySelectorAll('.pricing-option');
+  const actionBtn = document.getElementById('pricing-action-btn');
+  const closeBtn = document.getElementById('close-pricing-modal');
+  
+  // Plan pricing data with Creem.io product IDs
+  const planPricing = {
+    monthly: { 
+      price: '10.99', 
+      period: 'month',
+      productId: 'your_monthly_product_id', // Replace with actual Creem.io product ID
+      planName: 'Monthly Plan'
+    },
+    yearly: { 
+      price: '100.99', 
+      period: 'year',
+      productId: 'your_yearly_product_id', // Replace with actual Creem.io product ID
+      planName: 'Yearly Plan'
+    },
+    lifetime: { 
+      price: '299.99', 
+      period: 'one-time',
+      productId: 'your_lifetime_product_id', // Replace with actual Creem.io product ID
+      planName: 'Lifetime Plan'
+    }
+  };
+  
+  // Store selected plan globally
+  window.selectedPlan = null;
+  
+  // Handle plan selection
+  pricingOptions.forEach(option => {
+    option.addEventListener('click', function() {
+      // Remove selected class from all options
+      pricingOptions.forEach(opt => {
+        opt.classList.remove('selected');
+        opt.style.border = '2px solid rgba(255, 255, 255, 0.1)';
+        opt.style.background = 'rgba(255, 255, 255, 0.05)';
+        
+        const checkbox = opt.querySelector('.pricing-checkbox');
+        if (checkbox) {
+          checkbox.classList.remove('selected');
+          checkbox.style.border = '2px solid rgba(255, 255, 255, 0.3)';
+          checkbox.style.background = 'transparent';
+          checkbox.innerHTML = '';
+        }
+      });
+      
+      // Add selected class to clicked option
+      this.classList.add('selected');
+      this.style.border = '2px solid #ff4757';
+      this.style.background = 'rgba(255, 71, 87, 0.1)';
+      
+      const checkbox = this.querySelector('.pricing-checkbox');
+      if (checkbox) {
+        checkbox.classList.add('selected');
+        checkbox.style.border = '2px solid #ff4757';
+        checkbox.style.background = '#ff4757';
+        checkbox.innerHTML = `
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 6L9 17L4 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        `;
+      }
+      
+      // Update button text and store selected plan
+      const plan = this.getAttribute('data-plan');
+      const pricing = planPricing[plan];
+      if (actionBtn && pricing) {
+        // Store selected plan globally
+        window.selectedPlan = {
+          plan: plan,
+          ...pricing
+        };
+        
+        if (plan === 'lifetime') {
+          actionBtn.textContent = `Pay $${pricing.price} & Sign up`;
+        } else {
+          actionBtn.textContent = `Pay $${pricing.price}/${pricing.period} & Sign up`;
+        }
+      }
+    });
+  });
+  
+  // Close modal functionality
+  if (closeBtn) {
+    closeBtn.addEventListener('click', function() {
+      const pricingModal = document.getElementById('pricing-modal');
+      if (pricingModal) {
+        pricingModal.classList.add('hidden');
+        pricingModal.style.display = 'none';
+      }
+    });
+  }
+  
+  // Close modal when clicking outside
+  const pricingModal = document.getElementById('pricing-modal');
+  if (pricingModal) {
+    pricingModal.addEventListener('click', function(e) {
+      if (e.target === pricingModal) {
+        pricingModal.classList.add('hidden');
+        pricingModal.style.display = 'none';
+      }
+    });
+  }
+  
+  // Set initial button text and selected plan based on default selection
+  const selectedOption = document.querySelector('.pricing-option.selected');
+  if (selectedOption && actionBtn) {
+    const plan = selectedOption.getAttribute('data-plan');
+    const pricing = planPricing[plan];
+    if (pricing) {
+      // Store default selected plan
+      window.selectedPlan = {
+        plan: plan,
+        ...pricing
+      };
+      
+      if (plan === 'lifetime') {
+        actionBtn.textContent = `Pay $${pricing.price} & Sign up`;
+      } else {
+        actionBtn.textContent = `Pay $${pricing.price}/${pricing.period} & Sign up`;
+      }
+    }
+  }
+  
+  // Handle pay button click - open auth modal
+  if (actionBtn) {
+    actionBtn.addEventListener('click', function() {
+      // Close pricing modal
+      const pricingModal = document.getElementById('pricing-modal');
+      if (pricingModal) {
+        pricingModal.classList.add('hidden');
+        pricingModal.style.display = 'none';
+      }
+      
+      // Open auth modal for signup
+      const authModal = document.getElementById('auth-modal');
+      if (authModal) {
+        // Remove hidden class and show modal
+        authModal.classList.remove('hidden');
+        authModal.style.display = 'flex';
+        authModal.style.alignItems = 'center';
+        authModal.style.justifyContent = 'center';
+        
+        // Ensure modal is visible with proper z-index
+        authModal.style.position = 'fixed';
+        authModal.style.top = '0';
+        authModal.style.left = '0';
+        authModal.style.width = '100vw';
+        authModal.style.height = '100vh';
+        authModal.style.background = 'rgba(0,0,0,0.5)';
+        authModal.style.zIndex = '9999';
+        
+        // Ensure the glass panel inside is visible
+        const glassPanel = authModal.querySelector('.glass-panel');
+        if (glassPanel) {
+          glassPanel.style.display = 'block';
+          glassPanel.style.position = 'relative';
+          glassPanel.style.zIndex = '10000';
+        }
+        
+        // Update signup button text with selected plan
+        const signupBtn = document.getElementById('signup-btn');
+        if (signupBtn && window.selectedPlan) {
+          signupBtn.textContent = `Create Account & Pay $${window.selectedPlan.price}`;
+        }
+        
+        // Clear any existing error messages
+        const errorMessage = document.getElementById('auth-error-message');
+        if (errorMessage) {
+          errorMessage.textContent = '';
+          errorMessage.style.display = 'none';
+        }
+        
+        // Initialize auth modal functionality
+        initializeAuthModal();
+      }
+    });
+  }
+}
+
+// Initialize auth modal functionality
+function initializeAuthModal() {
+  const authForm = document.getElementById('auth-form');
+  const signupBtn = document.getElementById('signup-btn');
+  const closeBtn = document.getElementById('close-auth-modal');
+  const errorMessage = document.getElementById('auth-error-message');
+  
+  // Close modal functionality
+  if (closeBtn) {
+    closeBtn.removeEventListener('click', closeAuthModal); // Remove existing listener
+    closeBtn.addEventListener('click', closeAuthModal);
+  }
+  
+  // Close modal when clicking outside
+  const authModal = document.getElementById('auth-modal');
+  if (authModal) {
+    authModal.removeEventListener('click', handleAuthModalOutsideClick); // Remove existing listener
+    authModal.addEventListener('click', handleAuthModalOutsideClick);
+  }
+  
+  // Close modal functions
+  function closeAuthModal() {
+    const authModal = document.getElementById('auth-modal');
+    if (authModal) {
+      authModal.classList.add('hidden');
+      authModal.style.display = 'none';
+    }
+  }
+  
+  function handleAuthModalOutsideClick(e) {
+    const authModal = document.getElementById('auth-modal');
+    if (e.target === authModal) {
+      closeAuthModal();
+    }
+  }
+  
+  // Handle signup form submission
+  if (signupBtn) {
+    signupBtn.addEventListener('click', async function(e) {
+      e.preventDefault();
+      
+      const email = document.getElementById('auth-email').value;
+      const password = document.getElementById('auth-password').value;
+      
+      // Validate inputs
+      if (!email || !password) {
+        showAuthError('Please fill in all fields');
+        return;
+      }
+      
+      if (!isValidEmail(email)) {
+        showAuthError('Please enter a valid email address');
+        return;
+      }
+      
+      if (password.length < 6) {
+        showAuthError('Password must be at least 6 characters long');
+        return;
+      }
+      
+      if (!window.selectedPlan) {
+        showAuthError('Please select a plan first');
+        return;
+      }
+      
+      // Show loading state
+      signupBtn.textContent = 'Creating Account...';
+      signupBtn.disabled = true;
+      
+      try {
+        // Create Supabase account
+        const { data, error } = await supabase.auth.signUp({
+          email: email,
+          password: password,
+        });
+        
+        if (error) {
+          throw error;
+        }
+        
+        // If account created successfully, launch Creem checkout
+        if (data.user) {
+          // Close auth modal
+          authModal.classList.add('hidden');
+          authModal.style.display = 'none';
+          
+          // Launch Creem.io checkout
+          launchCreemCheckout(email, window.selectedPlan);
+        }
+        
+      } catch (error) {
+        console.error('Signup error:', error);
+        showAuthError(error.message || 'Failed to create account. Please try again.');
+        
+        // Reset button state
+        if (window.selectedPlan) {
+          signupBtn.textContent = `Create Account & Pay $${window.selectedPlan.price}`;
+        }
+        signupBtn.disabled = false;
+      }
+    });
+  }
+  
+  // Helper function to show auth errors
+  function showAuthError(message) {
+    if (errorMessage) {
+      errorMessage.textContent = message;
+      errorMessage.style.display = 'block';
+    }
+  }
+  
+  // Helper function to validate email
+  function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+}
+
+// Launch Creem.io checkout
+function launchCreemCheckout(email, selectedPlan) {
+  try {
+    // Replace with your actual Creem.io configuration
+    const creemConfig = {
+      publicKey: 'your_creem_public_key', // Replace with your Creem.io public key
+      productId: selectedPlan.productId,
+      customerEmail: email,
+      amount: parseFloat(selectedPlan.price) * 100, // Convert to cents
+      currency: 'USD',
+      planName: selectedPlan.planName,
+      successUrl: window.location.origin + '/success',
+      cancelUrl: window.location.origin + '/cancel',
+      metadata: {
+        plan: selectedPlan.plan,
+        period: selectedPlan.period,
+        userId: email // You can also use Supabase user ID here
+      }
+    };
+    
+    // Launch Creem checkout
+    // Note: Replace this with actual Creem.io SDK integration
+    if (window.Creem) {
+      window.Creem.checkout(creemConfig);
+    } else {
+      // Fallback: redirect to Creem checkout URL
+      const checkoutUrl = `https://checkout.creem.io/pay?` + 
+        `publicKey=${encodeURIComponent(creemConfig.publicKey)}&` +
+        `productId=${encodeURIComponent(creemConfig.productId)}&` +
+        `email=${encodeURIComponent(email)}&` +
+        `amount=${creemConfig.amount}&` +
+        `currency=${creemConfig.currency}`;
+      
+      window.location.href = checkoutUrl;
+    }
+    
+  } catch (error) {
+    console.error('Creem checkout error:', error);
+    alert('Failed to launch payment. Please try again.');
+  }
+}
+
+// Apply glass effect styling to pricing modal
+function applyGlassPricingModalStyles() {
+  const pricingModal = document.getElementById('pricing-modal');
+  const pricingPanel = pricingModal?.querySelector('.pricing-panel');
+  
+  if (pricingPanel) {
+    // Apply glassmorphism effect
+    pricingPanel.style.background = 'rgba(255, 255, 255, 0.1)';
+    pricingPanel.style.backdropFilter = 'blur(20px)';
+    pricingPanel.style.webkitBackdropFilter = 'blur(20px)';
+    pricingPanel.style.border = '1px solid rgba(255, 255, 255, 0.2)';
+    pricingPanel.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.3)';
+    
+    // Remove the blue gradient background
+    pricingPanel.style.backgroundImage = 'none';
+  }
+}
+
+// Apply compact styling to pricing options
+function applyCompactPricingStyles() {
+  const pricingOptions = document.querySelectorAll('.pricing-option');
+  const pricingContainer = document.querySelector('.pricing-options');
+  
+  // Make container more compact
+  if (pricingContainer) {
+    pricingContainer.style.marginBottom = '1.5em';
+  }
+  
+  pricingOptions.forEach(option => {
+    // Reduce padding and margins
+    option.style.padding = '0.6em 0.8em';
+    option.style.marginBottom = '0.5em';
+    option.style.borderRadius = '8px';
+    
+    // Make checkbox smaller
+    const checkbox = option.querySelector('.pricing-checkbox');
+    if (checkbox) {
+      checkbox.style.width = '16px';
+      checkbox.style.height = '16px';
+      checkbox.style.borderRadius = '3px';
+      
+      // Adjust checkmark size if it exists
+      const svg = checkbox.querySelector('svg');
+      if (svg) {
+        svg.style.width = '10px';
+        svg.style.height = '10px';
+      }
+    }
+    
+    // Adjust pricing info spacing and font sizes
+    const pricingInfo = option.querySelector('.pricing-info');
+    if (pricingInfo) {
+      pricingInfo.style.marginLeft = '0.8em';
+      
+      // Make plan name smaller
+      const planName = pricingInfo.children[0];
+      if (planName) {
+        planName.style.fontSize = '1em';
+        planName.style.fontWeight = '500';
+        planName.style.marginBottom = '2px';
+      }
+      
+      // Make price smaller
+      const planPrice = pricingInfo.children[1];
+      if (planPrice) {
+        planPrice.style.fontSize = '0.85em';
+      }
+    }
+    
+    // Adjust best value badge
+    const badge = option.querySelector('.best-value-badge');
+    if (badge) {
+      badge.style.fontSize = '0.65em';
+      badge.style.padding = '2px 6px';
+      badge.style.borderRadius = '6px';
+      badge.style.top = '-6px';
+      badge.style.right = '8px';
+    }
+  });
+}
+
+// Add cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  // Comprehensive audio cleanup
+  cleanupAllAudio();
+  
+  // Timer interval cleanup
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  
+  // Save incomplete session
+  if (state.sessionStartTime) {
+    endSession();
+  }
+});
+  
+  
   
