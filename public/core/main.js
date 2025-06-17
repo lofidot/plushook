@@ -4682,7 +4682,7 @@ function initializeAuthModal() {
           authModal.style.display = 'none';
           
           // Launch Creem.io checkout
-          await launchCreemCheckout(email, window.selectedPlan);
+          await launchCreemCheckout(email, window.selectedPlan, data.user.id);
         }
         
       } catch (error) {
@@ -4714,7 +4714,7 @@ function initializeAuthModal() {
 }
 
 // Launch Creem.io checkout using local API
-async function launchCreemCheckout(email, selectedPlan) {
+async function launchCreemCheckout(email, selectedPlan, userId = null) {
   try {
     // Prepare payload for local checkout API
     const payload = {
@@ -4729,6 +4729,13 @@ async function launchCreemCheckout(email, selectedPlan) {
       }
     };
 
+    // Add userId if available
+    if (userId) {
+      payload.userId = userId;
+    }
+
+    console.log('Sending checkout payload:', payload);
+
     // Call local checkout API
     const response = await fetch('/functions/api/checkout', {
       method: 'POST',
@@ -4738,12 +4745,28 @@ async function launchCreemCheckout(email, selectedPlan) {
       body: JSON.stringify(payload)
     });
 
+    console.log('Checkout response status:', response.status);
+
+    // Check if response has content before parsing JSON
+    const responseText = await response.text();
+    console.log('Checkout response text:', responseText);
+
     if (!response.ok) {
-      const errorData = await response.json();
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch (parseError) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText} - ${responseText}`);
+      }
       throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
     }
 
-    const data = await response.json();
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      throw new Error(`Invalid JSON response: ${responseText}`);
+    }
     
     if (data.url) {
       // Redirect to Creem checkout URL
