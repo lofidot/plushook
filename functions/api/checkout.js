@@ -40,10 +40,37 @@ export async function onRequest(context) {
         });
     }
 
-    // Use a default product_id if not provided
-    const PRODUCT_ID = product_id || context.env.CREEM_PRODUCT_ID || 'prod_7BFwqeQGeKekfu9nPj8h9m'; // Use env variable or default
-    if (!PRODUCT_ID || PRODUCT_ID === 'prod_7BFwqeQGeKekfu9nPj8h9m') {
-         console.warn('Using default product ID. Ensure CREEM_PRODUCT_ID env variable is set or product_id is provided in the request body.');
+    // Map plan types to product IDs based on metadata
+    let PRODUCT_ID = product_id;
+    
+    // If product_id is a placeholder or not provided, determine from plan metadata
+    if (!product_id || product_id.includes('placeholder')) {
+      if (metadata && metadata.plan) {
+        switch (metadata.plan) {
+          case 'monthly':
+            PRODUCT_ID = context.env.CREEM_MONTHLY_PRODUCT_ID || context.env.CREEM_PRODUCT_ID;
+            break;
+          case 'yearly':
+            PRODUCT_ID = context.env.CREEM_YEARLY_PRODUCT_ID || context.env.CREEM_PRODUCT_ID;
+            break;
+          case 'lifetime':
+            PRODUCT_ID = context.env.CREEM_LIFETIME_PRODUCT_ID || context.env.CREEM_PRODUCT_ID;
+            break;
+          default:
+            PRODUCT_ID = context.env.CREEM_PRODUCT_ID;
+        }
+      } else {
+        PRODUCT_ID = context.env.CREEM_PRODUCT_ID;
+      }
+    }
+    
+    // Final fallback to default
+    PRODUCT_ID = PRODUCT_ID || 'prod_7BFwqeQGeKekfu9nPj8h9m';
+    
+    console.log(`Selected plan: ${metadata?.plan}, Using product ID: ${PRODUCT_ID}`);
+    
+    if (PRODUCT_ID === 'prod_7BFwqeQGeKekfu9nPj8h9m') {
+         console.warn('Using default product ID. Ensure CREEM_PRODUCT_ID (or plan-specific) env variables are set.');
     }
 
     // Build the payload for Creem
