@@ -4737,7 +4737,7 @@ async function launchCreemCheckout(email, selectedPlan, userId = null) {
     console.log('Sending checkout payload:', payload);
 
     // Call local checkout API
-    const response = await fetch('/functions/api/checkout', {
+    const response = await fetch('/api/checkout', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -4746,6 +4746,7 @@ async function launchCreemCheckout(email, selectedPlan, userId = null) {
     });
 
     console.log('Checkout response status:', response.status);
+    console.log('Checkout response headers:', Object.fromEntries(response.headers.entries()));
 
     // Check if response has content before parsing JSON
     const responseText = await response.text();
