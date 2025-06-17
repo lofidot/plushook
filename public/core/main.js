@@ -4682,7 +4682,7 @@ function initializeAuthModal() {
           authModal.style.display = 'none';
           
           // Launch Creem.io checkout
-          launchCreemCheckout(email, window.selectedPlan);
+          await launchCreemCheckout(email, window.selectedPlan);
         }
         
       } catch (error) {
@@ -4713,45 +4713,48 @@ function initializeAuthModal() {
   }
 }
 
-// Launch Creem.io checkout
-function launchCreemCheckout(email, selectedPlan) {
+// Launch Creem.io checkout using local API
+async function launchCreemCheckout(email, selectedPlan) {
   try {
-    // Creem.io configuration using environment variable
-    const creemConfig = {
-      publicKey: 'creem_api_key_placeholder', // Will be set from environment later
-      productId: selectedPlan.productId,
-      customerEmail: email,
-      amount: parseFloat(selectedPlan.price) * 100, // Convert to cents
-      currency: 'USD',
-      planName: selectedPlan.planName,
-      successUrl: window.location.origin + '/success',
-      cancelUrl: window.location.origin + '/cancel',
+    // Prepare payload for local checkout API
+    const payload = {
+      email: email,
+      product_id: selectedPlan.productId,
+      success_url: window.location.origin + '/success',
       metadata: {
         plan: selectedPlan.plan,
         period: selectedPlan.period,
-        userId: email // You can also use Supabase user ID here
+        planName: selectedPlan.planName,
+        price: selectedPlan.price
       }
     };
+
+    // Call local checkout API
+    const response = await fetch('/functions/api/checkout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
     
-    // Launch Creem checkout
-    // Note: Replace this with actual Creem.io SDK integration
-    if (window.Creem) {
-      window.Creem.checkout(creemConfig);
+    if (data.url) {
+      // Redirect to Creem checkout URL
+      window.location.href = data.url;
     } else {
-      // Fallback: redirect to Creem checkout URL
-      const checkoutUrl = `https://checkout.creem.io/pay?` + 
-        `publicKey=${encodeURIComponent(creemConfig.publicKey)}&` +
-        `productId=${encodeURIComponent(creemConfig.productId)}&` +
-        `email=${encodeURIComponent(email)}&` +
-        `amount=${creemConfig.amount}&` +
-        `currency=${creemConfig.currency}`;
-      
-      window.location.href = checkoutUrl;
+      throw new Error('No checkout URL received from API');
     }
     
   } catch (error) {
     console.error('Creem checkout error:', error);
-    alert('Failed to launch payment. Please try again.');
+    alert(`Failed to launch payment: ${error.message}. Please try again.`);
   }
 }
 
