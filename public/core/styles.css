@@ -5878,7 +5878,7 @@
   /* Extra small devices (portrait phones, less than 478px) */
   @media (max-width: 478px) {
       .controls-container {
-          bottom: 35px;
+          bottom: 10px;
           z-index: 9999;
       }
       .control-btn {
