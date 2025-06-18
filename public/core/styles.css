@@ -63,6 +63,77 @@
   --shadow-standard: var(--glass-shadow);
   --radius-standard: var(--radius-md);
 }
+
+/* Pricing Modal Scrollbar Styling */
+.pricing-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pricing-panel::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.pricing-panel::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  transition: all 0.3s ease;
+}
+
+.pricing-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Firefox scrollbar styling */
+.pricing-panel {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.05);
+}
+
+/* Mobile responsive pricing modal */
+@media (max-width: 768px) {
+  .pricing-modal {
+    align-items: stretch !important;
+    padding: 0 !important;
+  }
+  
+  .pricing-container {
+    min-width: 100vw !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    height: 100vh !important;
+  }
+  
+  .pricing-panel {
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 2em 1.5em !important;
+    border: none !important;
+  }
+  
+  /* Hide scrollbar on mobile for cleaner look */
+  .pricing-panel::-webkit-scrollbar {
+    display: none !important;
+  }
+  
+  .pricing-panel {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+  
+  /* Mobile button styling */
+  #pricing-action-btn {
+    border-radius: 0 !important;
+    border: none !important;
+    margin: 0 !important;
+  }
+  
+  /* Adjust close button for mobile */
+  #close-pricing-modal {
+    top: 1em !important;
+    right: 1em !important;
+  }
+}
     
     * {
       margin: 0;
@@ -113,7 +184,7 @@
         position: relative;
         background: rgba(255, 255, 255, 0.1);
         border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 50%;
+        border-radius: 12px;
         width: 34px;
         height: 34px;
         backdrop-filter: blur(10px);
@@ -175,20 +246,12 @@
       justify-content: center;
       border-radius: 50%;
       overflow: hidden;
-      background: var(--glass-bg-tertiary);
-      backdrop-filter: var(--glass-blur);
-      -webkit-backdrop-filter: var(--glass-blur);
-      border: 1px solid var(--glass-border-strong);
-      box-shadow: var(--glass-shadow-inset), 0 4px 16px rgba(0, 0, 0, 0.1);
       transition: var(--transition-bounce);
       cursor: pointer;
     }
 
     .logo-container:hover {
       transform: scale(1.1);
-      background: var(--glass-bg-tertiary);
-      border-color: var(--accent-primary);
-      box-shadow: var(--glass-shadow-inset), 0 8px 24px rgba(0, 122, 255, 0.2);
     }
 
     .logo-container:active {
@@ -206,96 +269,6 @@
     /* Dropdown Styles */
     .dropdown {
       position: relative;
-      display: inline-block;
-    }
-
-    .nav-btn {
-      background: var(--glass-bg-secondary);
-      backdrop-filter: var(--glass-blur);
-      -webkit-backdrop-filter: var(--glass-blur);
-      border: 1px solid var(--glass-border);
-      color: var(--text-primary);
-      padding: 8px 16px;
-      border-radius: var(--radius-lg);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 14px;
-      font-weight: 500;
-      letter-spacing: -0.01em;
-      transition: var(--transition-normal);
-      min-width: 0px;
-      justify-content: space-between;
-      box-shadow: var(--glass-shadow-inset), 0 2px 8px rgba(0, 0, 0, 0.08);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .nav-btn::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
-      opacity: 0;
-      transition: var(--transition-fast);
-      pointer-events: none;
-    }
-
-    .nav-btn:hover {
-      background: var(--glass-bg-tertiary);
-      border-color: var(--glass-border-strong);
-      transform: translateY(-2px) scale(1.02);
-      box-shadow: var(--glass-shadow-inset), 0 4px 16px rgba(0, 0, 0, 0.12);
-    }
-
-    .nav-btn:hover::before {
-      opacity: 1;
-    }
-
-    .nav-btn:active {
-      transform: translateY(0) scale(0.98);
-      transition: var(--haptic-light) var(--ease-back);
-      box-shadow: var(--glass-shadow-inset), 0 2px 8px rgba(0, 0, 0, 0.08);
-    }
-
-    /* Haptic feedback ripple effect */
-    .nav-btn::after {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 0;
-      height: 0;
-      background: rgba(255, 255, 255, 0.3);
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
-      transition: width var(--haptic-medium) var(--ease-expo), 
-                  height var(--haptic-medium) var(--ease-expo),
-                  opacity var(--haptic-medium) var(--ease-expo);
-      opacity: 0;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    .nav-btn:active::after {
-      width: 100px;
-      height: 100px;
-      opacity: 0.6;
-      transition: width var(--haptic-light) var(--ease-back), 
-                  height var(--haptic-light) var(--ease-back),
-                  opacity var(--haptic-medium) var(--ease-back);
-    }
-
-    .nav-btn svg {
-      transition: transform 0.2s ease;
-    }
-
-    .dropdown.active .nav-btn svg {
-      transform: rotate(180deg);
     }
 
     .dropdown-menu {
@@ -329,6 +302,29 @@
 
     .dropdown-menu.right {
       right: 0;
+      left: auto;
+      /* Ensure dropdown doesn't go off-screen */
+      max-width: calc(100vw - 20px);
+      min-width: 220px;
+      /* Use absolute positioning relative to dropdown container */
+      position: absolute;
+      /* Ensure dropdown's right edge aligns with button's right edge */
+      transform: translateX(0);
+    }
+
+    @media (max-width: 768px) {
+      .dropdown-menu.right {
+        right: 10px;
+        max-width: calc(100vw - 40px);
+      }
+    }
+
+    @media (max-width: 480px) {
+      .dropdown-menu.right {
+        right: 10px;
+        min-width: calc(100vw - 40px);
+        max-width: calc(100vw - 40px);
+      }
     }
 
     .dropdown-item {
@@ -386,7 +382,7 @@
 
     .dropdown-item:hover svg {
       opacity: 1;
-      color: var(--accent-primary);
+      color: #ffffff;
       transform: scale(1.1);
     }
 
@@ -751,7 +747,7 @@
       opacity: 1;
       transition: width var(--haptic-light) var(--ease-back), 
                   height var(--haptic-light) var(--ease-back),
-                  opacity var(--haptic-heavy) ease-out;
+                  opacity var(--haptic-medium) var(--ease-back);
     }
 
     /* Multi-layered ripple effect for strong feedback */
@@ -1895,7 +1891,7 @@
     border: none;
     background: var(--glass-bg-primary);
     color: var(--text-primary);
-    border-radius: 12px;
+    border-radius: 50%;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -3254,7 +3250,7 @@
     /* Mobile Styles for Sound Library */
     @media (max-width: 767px) {
       .bottom-sheet {
-        max-height: 90vh;
+        max-height: 100vh;
       }
       
       .sheet-header {
@@ -4327,7 +4323,7 @@
       position: relative;
       cursor: pointer;
       transition: transform 0.3s ease;
-      border-radius: 12px;
+      border-radius: 50%;
       overflow: hidden;
       aspect-ratio: 1;
       background: rgba(0, 0, 0, 0.2);
@@ -4345,7 +4341,7 @@
       height: 100%;
       background-size: cover;
       background-position: center;
-      border-radius: 12px;
+      border-radius: 50%;
       transition: transform 0.3s ease;
     }
     
@@ -4398,6 +4394,11 @@
     }
     
     @media (max-width: 480px) {
+      /* Prevent iOS zoom on inputs */
+      input, select, textarea {
+        font-size: 16px !important;
+      }
+
       .modal-container {
         width: 100%;
         max-width: 100%;
@@ -4407,9 +4408,6 @@
         padding: 16px;
       }
     
-      .modal-content {
-        max-height: calc(100vh - 80px);
-      }
     
       .preset-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -4683,6 +4681,7 @@
   
       .url-input-group input {
         width: 100%;
+        font-size: 16px; /* Prevent iOS zoom */
       }
   
       .url-input-group button {
@@ -5447,13 +5446,13 @@
       display: grid;
       grid-template-columns: repeat(6, 1fr); /* Show 6 cards per row */
       gap: 16px;
-      margin-top: 16px;
+      margin-top: 32px;
     }
   
     #theme-modal .preset-theme {
       position: relative;
       display: block; /* Ensure block layout */
-      border-radius: 12px; /* Match sound library radius */
+      border-radius: 50%; /* Match sound library radius */
       overflow: hidden;
       cursor: pointer;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -5483,7 +5482,7 @@
       background-position: center;
       background-repeat: no-repeat;
       display: block;
-      border-radius: 12px;
+      border-radius: 50%;
     }
   
   
@@ -5506,7 +5505,7 @@
       content: '';
       position: absolute;
       inset: 0;
-      border-radius: 12px; /* Match card border-radius */
+      border-radius: 50%; /* Match card border-radius */
       padding: 2px; /* Adjust border thickness */
       background: linear-gradient(
         to bottom,
@@ -5590,7 +5589,7 @@
     .preset-theme {
         position: relative;
         display: block;
-        border-radius: 12px;
+        border-radius: 50%;
         overflow: hidden;
         cursor: pointer;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -5639,7 +5638,7 @@
         content: '';
         position: absolute;
         inset: 0;
-        border-radius: 12px;
+        border-radius: 50%;
         padding: 2px;
         background: linear-gradient(
             to bottom,
@@ -5981,7 +5980,7 @@
       content: '';
       position: absolute;
       inset: 0;
-      border-radius: 12px;
+      border-radius: 50%;
       padding: 1px;
       background: linear-gradient(45deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
       -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -6008,7 +6007,7 @@
   .library-sound-item,
   .preset-theme {
       position: relative;
-      border-radius: 12px;
+      border-radius: 50%;
       overflow: hidden;
       background: rgba(0, 0, 0, 0.2);
       transition: all 0.3s ease;
@@ -6724,7 +6723,7 @@
 #theme-modal .preset-theme {
   position: relative;
   display: block;
-  border-radius: 12px;
+  border-radius: 50%;
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -6767,11 +6766,18 @@
 /* Theme Category Bar Styles */
 .theme-category-bar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 10px;
   margin-bottom: 18px;
   justify-content: flex-start;
   align-items: center;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.theme-category-bar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
 }
 .theme-category-btn {
   padding: 7px 18px;
@@ -7488,7 +7494,6 @@
         backdrop-filter: blur(5px);
         -webkit-mask: linear-gradient(to bottom, transparent 0%, black 95%);
         mask: linear-gradient(to bottom, transparent 0%, black 95%);
-        background: rgba(0, 0, 0, 0.1);
     }
 }
 
@@ -7518,6 +7523,64 @@
     -webkit-mask: linear-gradient(to bottom, transparent 0%, black 95%);
     mask: linear-gradient(to bottom, transparent 0%, black 95%);
     background: rgba(0, 0, 0, 0.1);
+}
+
+/* Mobile adjustments - only adjust layout, not blur effect */
+@media (max-width: 767px) {
+    .library-sound-item,
+    .preset-theme {
+        aspect-ratio: 120 / 150;
+    }
+    
+    .library-sound-item .library-sound-name,
+    .preset-theme .theme-name {
+        font-size: 1rem;
+        bottom: 10px;
+        padding: 0 8px;
+    }
+}
+
+/* Fallback for browsers that don't support CSS masks */
+@supports not (mask-image: linear-gradient(black, transparent)) {
+    .library-sound-item .thumbnail-blur,
+    .preset-theme .thumbnail-blur {
+        background: linear-gradient(to bottom,
+            rgba(0, 0, 0, 0.1) 0%,
+            rgba(0, 0, 0, 0.05) 30%,
+            rgba(0, 0, 0, 0.02) 60%,
+            rgba(0, 0, 0, 0.01) 85%,
+            transparent 95%
+        );
+        -webkit-backdrop-filter: blur(3px);
+        backdrop-filter: blur(3px);
+    }
+}
+
+/* Right dropdown positioning - only one definition */
+.dropdown-menu.right {
+  right: 0;
+  left: auto;
+  /* Ensure dropdown's right edge aligns with button's right edge */
+  transform: translateX(0);
+  max-width: calc(100vw - 20px);
+  min-width: 220px;
+  /* Prevent dropdown from extending beyond viewport */
+  position: absolute;
+  /* Ensure dropdown's right edge aligns with button's right edge */
+  transform: translateX(0);
+}
+@media (max-width: 768px) {
+  .dropdown-menu.right {
+    right: 10px;
+    max-width: calc(100vw - 40px);
+  }
+}
+@media (max-width: 480px) {
+  .dropdown-menu.right {
+    right: 10px;
+    min-width: calc(100vw - 40px);
+    max-width: calc(100vw - 40px);
+  }
 }
 
 /* Mobile adjustments - only adjust layout, not blur effect */

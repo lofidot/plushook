@@ -19,10 +19,7 @@
       <div class="nav-left">
         <div class="dropdown" id="left-dropdown">
           <button class="nav-btn dropdown-toggle" id="left-nav-btn" aria-label="Menu">
-            <span id="left-btn-text">Plus+</span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            <img src="../../assets/Userplus.png" width="16" height="16" alt="User Plus">
           </button>
           <div class="dropdown-menu" id="left-dropdown-menu">
             <!-- Content will be dynamically updated based on auth state -->
@@ -33,7 +30,7 @@
       <!-- Center Logo -->
       <div class="nav-center">
         <div class="logo-container">
-          <img src="https://i.pinimg.com/736x/3a/3d/f9/3a3df9f1c2a4f8b8c5d6e7f8a9b0c1d2.jpg" alt="Logo" class="nav-logo" id="nav-logo">
+          <img src="assets/logo.png" alt="Logo" class="nav-logo" id="nav-logo">
         </div>
       </div>
 
@@ -41,10 +38,7 @@
       <div class="nav-right">
         <div class="dropdown" id="right-dropdown">
           <button class="nav-btn dropdown-toggle" id="right-nav-btn" aria-label="More">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>More</span>
+            <img src="../../assets/menu.png" width="16" height="16" alt="Menu">
           </button>
           <div class="dropdown-menu" id="right-dropdown-menu">
             <!-- Content will be updated dynamically -->
@@ -724,7 +718,8 @@
   </div>
   <!-- === Pricing Modal === -->
   <div id="pricing-modal" class="pricing-modal hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;">
-    <div class="pricing-panel" style="position: relative; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); padding: 2em; border-radius: 20px; min-width: 380px; max-width: 420px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4); text-align: center; border: 1px solid rgba(255, 255, 255, 0.1); z-index: 10001;">
+    <div class="pricing-container" style="position: relative; min-width: 380px; max-width: 420px; max-height: 85vh; display: flex; flex-direction: column;">
+      <div class="pricing-panel" style="position: relative; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); padding: 2em; border-radius: 20px 20px 0 0; overflow-y: auto; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4); text-align: center; border: 1px solid rgba(255, 255, 255, 0.1); border-bottom: none; z-index: 10001; flex: 1;">
       <div class="pricing-header" style="margin-bottom: 2em;">
         <button id="close-pricing-modal" style="position: absolute; top: 20px; right: 20px; background: rgba(255, 255, 255, 0.1); border: none; color: #fff; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -746,8 +741,8 @@
           </div>
         </div>
 
-        <div class="pricing-option selected" data-plan="yearly" data-price="100.99" style="display: flex; align-items: center; justify-content: space-between; padding: 1em; margin-bottom: 0.8em; border: 2px solid #ff4757; border-radius: 12px; cursor: pointer; transition: all 0.3s ease; background: rgba(255, 71, 87, 0.1); position: relative;">
-          <div class="pricing-checkbox selected" style="width: 20px; height: 20px; border: 2px solid #ff4757; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; background: #ff4757;">
+        <div class="pricing-option selected" data-plan="yearly" data-price="100.99" style="display: flex; align-items: center; justify-content: space-between; padding: 1em; margin-bottom: 0.8em; border: 2px solid #007AFF; border-radius: 12px; cursor: pointer; transition: all 0.3s ease; background: rgba(255, 71, 87, 0.1); position: relative;">
+          <div class="pricing-checkbox selected" style="width: 20px; height: 20px; border: 2px solid #007AFF; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; background: #007AFF;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M20 6L9 17L4 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -773,41 +768,94 @@
         <div class="feature-item" style="display: flex; align-items: center; margin-bottom: 1em; color: rgba(255, 255, 255, 0.8);">
           <div style="width: 32px; height: 32px; background: #ff4757; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 1em; flex-shrink: 0;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L15.09 8.26L22 9L17 14L18.18 21L12 17.77L5.82 21L7 14L2 9L8.91 8.26L12 2Z" fill="white"/>
+              <path d="M12 3V7L14 9L12 11V15L16 19L20 15V9L16 5L12 3Z" fill="white"/>
+              <path d="M12 3L8 7V15L12 19V11L10 9L12 7V3Z" fill="white" opacity="0.7"/>
             </svg>
           </div>
           <div>
-            <div style="font-weight: 500; color: #fff; margin-bottom: 2px;">Upgraded Stories</div>
-            <div style="font-size: 0.85em; color: rgba(255, 255, 255, 0.6);">Priority order, stealth mode, permanent view history and more.</div>
-          </div>
-        </div>
-
-        <div class="feature-item" style="display: flex; align-items: center; margin-bottom: 1em; color: rgba(255, 255, 255, 0.8);">
-          <div style="width: 32px; height: 32px; background: #ff4757; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 1em; flex-shrink: 0;">
-            <span style="color: white; font-weight: bold; font-size: 0.9em;">x2</span>
-          </div>
-          <div>
-            <div style="font-weight: 500; color: #fff; margin-bottom: 2px;">Doubled Limits</div>
-            <div style="font-size: 0.85em; color: rgba(255, 255, 255, 0.6);">Up to 1000 channels, 20 folders, 10 pins, 20 public links, 4 accounts and more.</div>
+            <div style="font-weight: 500; color: #fff; margin-bottom: 2px;">Unlimited Sounds</div>
+            <div style="font-size: 0.85em; color: rgba(255, 255, 255, 0.6);">Access all focus and ambient sounds. Includes Mix Mode for personalized sessions.</div>
           </div>
         </div>
 
         <div class="feature-item" style="display: flex; align-items: center; margin-bottom: 1em; color: rgba(255, 255, 255, 0.8);">
           <div style="width: 32px; height: 32px; background: #ff4757; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 1em; flex-shrink: 0;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 1C14.5 1 17 2.5 17 5V9C17 11.5 15.5 13 13 13H11C8.5 13 7 11.5 7 9V5C7 2.5 9.5 1 12 1Z" fill="white"/>
-              <path d="M19 10V12C19 16.97 15.84 21.16 11 21.92V20H13C13.55 20 14 19.55 14 19C14 18.45 13.55 18 13 18H11V15.92C15.84 15.16 19 10.97 19 6V8C21.21 8 23 9.79 23 12C23 14.21 21.21 16 19 16H5C2.79 16 1 14.21 1 12C1 9.79 2.79 8 5 8V6C5 10.97 8.16 15.16 13 15.92V18H11C10.45 18 10 18.45 10 19C10 19.55 10.45 20 11 20H13V21.92C8.16 21.16 5 16.97 5 12V10H19Z" fill="white"/>
+              <path d="M9 11H15L13 16H11L9 11Z" fill="white"/>
+              <path d="M12 2L19 9V20C19 21.1 18.1 22 17 22H7C5.9 22 5 21.1 5 20V4C5 2.9 5.9 2 7 2H12Z" fill="white"/>
             </svg>
           </div>
           <div>
-            <div style="font-weight: 500; color: #fff; margin-bottom: 2px;">Voice-to-Text Conversion</div>
-            <div style="font-size: 0.85em; color: rgba(255, 255, 255, 0.6);">Ability to read the transcript of any incoming voice message.</div>
+            <div style="font-weight: 500; color: #fff; margin-bottom: 2px;">Unlimited Scenes</div>
+            <div style="font-size: 0.85em; color: rgba(255, 255, 255, 0.6);">Choose from all visual themes. Immerse yourself anywhere, anytime.</div>
+          </div>
+        </div>
+
+        <div class="feature-item" style="display: flex; align-items: center; margin-bottom: 1em; color: rgba(255, 255, 255, 0.8);">
+          <div style="width: 32px; height: 32px; background: #ff4757; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 1em; flex-shrink: 0;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 16V4C21 2.9 20.1 2 19 2H5C3.9 2 3 2.9 3 4V16L12 22L21 16Z" fill="white"/>
+              <path d="M12 6L14 10H10L12 6Z" fill="white" opacity="0.7"/>
+            </svg>
+          </div>
+          <div>
+            <div style="font-weight: 500; color: #fff; margin-bottom: 2px;">Custom Uploads</div>
+            <div style="font-size: 0.85em; color: rgba(255, 255, 255, 0.6);">Add your own sounds or themes and use them in your sessions.</div>
+          </div>
+        </div>
+
+        <div class="feature-item" style="display: flex; align-items: center; margin-bottom: 1em; color: rgba(255, 255, 255, 0.8);">
+          <div style="width: 32px; height: 32px; background: #ff4757; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 1em; flex-shrink: 0;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z" fill="white"/>
+              <path d="M8 8V10H12V8H8ZM8 12V14H16V12H8Z" fill="white" opacity="0.7"/>
+            </svg>
+          </div>
+          <div>
+            <div style="font-weight: 500; color: #fff; margin-bottom: 2px;">Unlimited To-Dos</div>
+            <div style="font-size: 0.85em; color: rgba(255, 255, 255, 0.6);">Plan as much as you need — today, tomorrow, or beyond.</div>
+          </div>
+        </div>
+
+        <div class="feature-item" style="display: flex; align-items: center; margin-bottom: 1em; color: rgba(255, 255, 255, 0.8);">
+          <div style="width: 32px; height: 32px; background: #ff4757; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 1em; flex-shrink: 0;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 13H11V3H3V13ZM3 21H11V15H3V21ZM13 21H21V11H13V21ZM13 3V9H21V3H13Z" fill="white"/>
+            </svg>
+          </div>
+          <div>
+            <div style="font-weight: 500; color: #fff; margin-bottom: 2px;">Focus Stats Dashboard</div>
+            <div style="font-size: 0.85em; color: rgba(255, 255, 255, 0.6);">See when you're most productive. Simple, insightful analytics.</div>
+          </div>
+        </div>
+
+        <div class="feature-item" style="display: flex; align-items: center; margin-bottom: 1em; color: rgba(255, 255, 255, 0.8);">
+          <div style="width: 32px; height: 32px; background: #ff4757; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 1em; flex-shrink: 0;">
+            <span style="color: white; font-weight: bold; font-size: 0.7em;">∞</span>
+          </div>
+          <div>
+            <div style="font-weight: 500; color: #fff; margin-bottom: 2px;">Unlimited Focus Sessions</div>
+            <div style="font-size: 0.85em; color: rgba(255, 255, 255, 0.6);">Use all four timer modes with no limits.</div>
+          </div>
+        </div>
+
+        <div class="feature-item" style="display: flex; align-items: center; margin-bottom: 1em; color: rgba(255, 255, 255, 0.8);">
+          <div style="width: 32px; height: 32px; background: #ff4757; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 1em; flex-shrink: 0;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C6.48 2 2 6.48 2 12S6.48 22 12 22 22 17.52 22 12 17.52 2 12 2ZM13 17H11V11H13V17ZM13 9H11V7H13V9Z" fill="white"/>
+            </svg>
+          </div>
+          <div>
+            <div style="font-weight: 500; color: #fff; margin-bottom: 2px;">Break Cues</div>
+            <div style="font-size: 0.85em; color: rgba(255, 255, 255, 0.6);">Meaningful ideas for every break — stay balanced and refreshed.</div>
           </div>
         </div>
       </div>
 
-      <!-- Action Button -->
-      <button id="pricing-action-btn" style="width: 100%; padding: 1em; border-radius: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; font-weight: 600; font-size: 1.1em; cursor: pointer; transition: all 0.3s ease; margin-bottom: 1em;">
+      </div>
+      
+      <!-- Action Button - Fixed outside scrollable area -->
+      <button id="pricing-action-btn" style="width: 100%; padding: 1em; border-radius: 0 0 20px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; font-weight: 600; font-size: 1.1em; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); border-top: none;">
         Gift Subscription for $100.99
       </button>
     </div>

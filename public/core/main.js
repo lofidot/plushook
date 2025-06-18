@@ -2019,9 +2019,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- Plus Popup Functions for Webflow ---
     function openPlusPopup() {
-      // You can use this to show your Webflow popup
-      const popup = document.querySelector('.plus-popup');
-      if (popup) popup.classList.add('plus-popup-open');
+      // Open the pricing modal for locked content
+      openPricingModal();
+    }
+
+    function openPricingModal() {
+      const pricingModal = document.getElementById('pricing-modal');
+      if (pricingModal) {
+        pricingModal.classList.remove('hidden');
+        pricingModal.style.display = 'flex';
+        // Apply glass effect styling
+        applyGlassPricingModalStyles();
+        // Initialize pricing modal functionality
+        initializePricingModal();
+        // Apply compact styling to pricing options
+        applyCompactPricingStyles();
+      }
     }
     function closePlusPopup() {
       const popup = document.querySelector('.plus-popup');
@@ -4187,6 +4200,14 @@ function initializeNavDropdowns() {
     leftDropdownMenu: !!leftDropdownMenu,
     rightDropdownMenu: !!rightDropdownMenu
   });
+
+  // Add positioning classes to dropdown menus
+  if (leftDropdownMenu) {
+    leftDropdownMenu.classList.add('left');
+  }
+  if (rightDropdownMenu) {
+    rightDropdownMenu.classList.add('right');
+  }
 
   // Populate dropdown menus with content
   try {

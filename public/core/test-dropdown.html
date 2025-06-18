@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dropdown Test</title>
+  <style>
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .nav-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .dropdown-menu {
+      position: absolute;
+      top: calc(100% + 12px);
+      left: 0;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      min-width: 200px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-10px);
+      transition: all 0.3s ease;
+      padding: 8px;
+    }
+    
+    .dropdown.active .dropdown-menu {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+    
+    .dropdown-item {
+      display: block;
+      padding: 8px 12px;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      margin: 2px 0;
+    }
+    
+    .dropdown-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    body {
+      background: #333;
+      color: white;
+      font-family: Arial, sans-serif;
+      padding: 50px;
+    }
+  </style>
+</head>
+<body>
+  <div class="dropdown" id="test-dropdown">
+    <button class="nav-btn" id="test-btn">
+      Plus+
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+        <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2"/>
+      </svg>
+    </button>
+    <div class="dropdown-menu" id="test-menu">
+      <a href="#" class="dropdown-item" id="pricing-test">Pricing</a>
+      <a href="#" class="dropdown-item" id="signup-test">Sign Up</a>
+    </div>
+  </div>
+
+  <script>
+    console.log('Test script loaded');
+    
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOM ready');
+      
+      const dropdown = document.getElementById('test-dropdown');
+      const btn = document.getElementById('test-btn');
+      const menu = document.getElementById('test-menu');
+      
+      console.log('Elements found:', { dropdown: !!dropdown, btn: !!btn, menu: !!menu });
+      
+      if (btn) {
+        btn.addEventListener('click', function(e) {
+          console.log('Button clicked!');
+          e.stopPropagation();
+          dropdown.classList.toggle('active');
+        });
+      }
+      
+      // Close dropdown when clicking outside
+      document.addEventListener('click', function(e) {
+        if (!e.target.closest('.dropdown')) {
+          dropdown.classList.remove('active');
+        }
+      });
+      
+      // Test pricing link
+      document.getElementById('pricing-test').addEventListener('click', function(e) {
+        e.preventDefault();
+        alert('Pricing clicked!');
+      });
+      
+      document.getElementById('signup-test').addEventListener('click', function(e) {
+        e.preventDefault();
+        alert('Sign up clicked!');
+      });
+    });
+  </script>
+</body>
+</html>
