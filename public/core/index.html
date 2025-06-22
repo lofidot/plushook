@@ -19,7 +19,7 @@
       <div class="nav-left">
         <div class="dropdown" id="left-dropdown">
           <button class="nav-btn dropdown-toggle" id="left-nav-btn" aria-label="Menu">
-            <img src="../../assets/Userplus.png" width="16" height="16" alt="User Plus">
+            <img src="assets/Userplus.png" width="16" height="16" alt="User Plus">
           </button>
           <div class="dropdown-menu" id="left-dropdown-menu">
             <!-- Content will be dynamically updated based on auth state -->
@@ -38,7 +38,7 @@
       <div class="nav-right">
         <div class="dropdown" id="right-dropdown">
           <button class="nav-btn dropdown-toggle" id="right-nav-btn" aria-label="More">
-            <img src="../../assets/menu.png" width="16" height="16" alt="Menu">
+            <img src="assets/menu.png" width="16" height="16" alt="Menu">
           </button>
           <div class="dropdown-menu" id="right-dropdown-menu">
             <!-- Content will be updated dynamically -->
@@ -186,6 +186,134 @@
         </button>
 
       </div>
+    </div>
+    
+    <!-- Single Mode Control Panel -->
+    <div id="single-mode-controls" class="single-mode-container hidden">
+      <div class="glass-panel single-mode-panel">
+        <!-- Binaural Beats Button -->
+        <button id="binaural-btn" class="mode-control-btn" aria-label="Binaural Beats">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+        </button>
+        
+        <!-- Current Playing Sound Name / Mix Count -->
+        <div class="current-sound-display">
+          <span id="current-sound-name">No Sound Playing</span>
+          <div id="mix-count-display" class="mix-count hidden">
+            <span id="mix-count">0</span> sounds playing
+            <button id="mix-menu-btn" class="mix-menu-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 13C12.5523 13 13 12.5523 13 12C13 11.4477 12.5523 11 12 11C11.4477 11 11 11.4477 11 12C11 12.5523 11.4477 13 12 13Z" fill="currentColor"/>
+                <path d="M12 6C12.5523 6 13 5.55228 13 5C13 4.44772 12.5523 4 12 4C11.4477 4 11 4.44772 11 5C11 5.55228 11.4477 6 12 6Z" fill="currentColor"/>
+                <path d="M12 20C12.5523 20 13 19.5523 13 19C13 18.4477 12.5523 18 12 18C11.4477 18 11 18.4477 11 19C11 19.5523 11.4477 20 12 20Z" fill="currentColor"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Isochronic Tones Button -->
+        <button id="isochronic-btn" class="mode-control-btn" aria-label="Isochronic Tones">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="6" width="18" height="2" rx="1" fill="currentColor"/>
+            <rect x="3" y="10" width="18" height="2" rx="1" fill="currentColor"/>
+            <rect x="3" y="14" width="18" height="2" rx="1" fill="currentColor"/>
+          </svg>
+        </button>
+      </div>
+      
+      <!-- Binaural Beats Dropdown -->
+      <div id="binaural-dropdown" class="enhancer-dropdown hidden">
+        <select id="binaural-preset-select" class="preset-select">
+          <option value="">Select Binaural Beat</option>
+          <option value="delta-2">Delta (2Hz) - Deep Sleep</option>
+          <option value="theta-5">Theta (5Hz) - Meditation</option>
+          <option value="alpha-10">Alpha (10Hz) - Relaxation</option>
+          <option value="beta-20">Beta (20Hz) - Focus</option>
+          <option value="gamma-40">Gamma (40Hz) - Cognition</option>
+          <option value="custom">Custom</option>
+        </select>
+        
+        <!-- Custom Controls (hidden by default) -->
+        <div id="binaural-custom-controls" class="custom-controls hidden">
+          <div class="custom-row">
+            <label>Base: <input type="number" id="binaural-base-freq" min="100" max="1000" value="440">Hz</label>
+            <label>Beat: <input type="number" id="binaural-beat-freq" min="1" max="50" value="10">Hz</label>
+          </div>
+        </div>
+        
+        <!-- Volume Control -->
+        <div class="volume-control">
+          <label>Volume: <span id="binaural-volume-value">30%</span></label>
+          <input type="range" id="binaural-volume" min="0" max="100" value="30" class="volume-slider">
+        </div>
+        
+        <div class="dropdown-actions">
+          <button id="binaural-play-btn" class="enhancer-btn">Play</button>
+          <button id="binaural-stop-btn" class="enhancer-btn stop-btn">Stop</button>
+        </div>
+      </div>
+      
+      <!-- Isochronic Tones Dropdown -->
+      <div id="isochronic-dropdown" class="enhancer-dropdown hidden">
+        <select id="isochronic-preset-select" class="preset-select">
+          <option value="">Select Isochronic Tone</option>
+          <option value="delta-2">Delta (2Hz) - Deep Sleep</option>
+          <option value="theta-5">Theta (5Hz) - Meditation</option>
+          <option value="alpha-10">Alpha (10Hz) - Relaxation</option>
+          <option value="beta-20">Beta (20Hz) - Focus</option>
+          <option value="gamma-40">Gamma (40Hz) - Cognition</option>
+          <option value="custom">Custom</option>
+        </select>
+        
+        <!-- Custom Controls (hidden by default) -->
+        <div id="isochronic-custom-controls" class="custom-controls hidden">
+          <div class="custom-row">
+            <label>Base: <input type="number" id="iso-base-freq" min="100" max="1000" value="440">Hz</label>
+            <label>Tone: <input type="number" id="iso-tone-freq" min="1" max="50" value="10">Hz</label>
+          </div>
+        </div>
+        
+        <!-- Volume Control -->
+        <div class="volume-control">
+          <label>Volume: <span id="iso-volume-value">30%</span></label>
+          <input type="range" id="iso-volume" min="0" max="100" value="30" class="volume-slider">
+        </div>
+        
+        <div class="dropdown-actions">
+          <button id="iso-play-btn" class="enhancer-btn">Play</button>
+          <button id="iso-stop-btn" class="enhancer-btn stop-btn">Stop</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Mix Mode Menu (Separate from single-mode-controls) -->
+    <div id="mix-mode-menu" class="mix-mode-menu hidden">
+      <div class="mix-menu-header">
+        <button id="close-mix-menu" class="close-mix-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M7 17L17 7M7 7l10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <h3>Current Mix</h3>
+        <button id="save-mix-btn" class="save-mix-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" stroke="currentColor" stroke-width="2"/>
+            <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2"/>
+            <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2"/>
+          </svg>
+        </button>
+      </div>
+      
+      <div id="mix-sounds-list" class="mix-sounds-list">
+        <!-- Mix sounds will be dynamically added here -->
+      </div>
+      
+      <button id="clear-all-sounds" class="clear-all-btn">
+        Clear all sounds
+      </button>
     </div>
     
     <!-- Sound Library Bottom Sheet -->

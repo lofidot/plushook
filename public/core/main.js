@@ -457,6 +457,7 @@ document.addEventListener('DOMContentLoaded', function() {
       try {
         console.log('Attempting to load sounds from Supabase...');
         sounds = await getSoundsFromSupabase();
+        window.sounds = sounds; // Make sounds globally accessible
         console.log('Loaded sounds from Supabase:', sounds.length, 'sounds');
         console.log('First few sound IDs:', sounds.slice(0, 5).map(s => s.id));
         renderSoundGrid();
@@ -465,6 +466,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Error initializing sounds:', error);
         console.log('Falling back to fallbackSounds...');
         sounds = fallbackSounds;
+        window.sounds = sounds; // Make fallback sounds globally accessible too
         console.log('Using fallback sounds:', sounds.length, 'sounds');
         console.log('Fallback sound IDs:', sounds.map(s => s.id));
         renderSoundGrid();
@@ -573,6 +575,7 @@ document.addEventListener('DOMContentLoaded', function() {
           state.isPlaying = true;
           updatePlayButton();
           updateSoundLibraryIcons();
+          if (typeof onAudioStateChanged === 'function') onAudioStateChanged();
         };
         
         audio.pauseHandler = () => {
@@ -580,6 +583,7 @@ document.addEventListener('DOMContentLoaded', function() {
           state.isPlaying = false;
           updatePlayButton();
           updateSoundLibraryIcons();
+          if (typeof onAudioStateChanged === 'function') onAudioStateChanged();
         };
         
         audio.errorHandler = (e) => {
@@ -587,6 +591,7 @@ document.addEventListener('DOMContentLoaded', function() {
           state.isPlaying = false;
           updatePlayButton();
           updateSoundLibraryIcons();
+          if (typeof onAudioStateChanged === 'function') onAudioStateChanged();
         };
         
         audio.addEventListener('canplay', audio.canplayHandler);
@@ -627,6 +632,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (typeof renderSoundGrid === 'function') {
         renderSoundGrid();
       }
+      if (typeof onAudioStateChanged === 'function') onAudioStateChanged();
     }
     
     // Add cleanup function for proper audio disposal
@@ -1274,6 +1280,8 @@ document.addEventListener('DOMContentLoaded', function() {
             renderSoundLibrary();
             renderSoundGrid();
             updatePlayButton();
+            // Update single mode panel to reflect the mode change
+            if (typeof onAudioStateChanged === 'function') onAudioStateChanged();
             // Instantly update theme modal if open
             if (typeof themeModal !== 'undefined' && themeModal && !themeModal.classList.contains('hidden')) {
               renderThemeGrid();
@@ -1302,7 +1310,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Track which sound ids are present
             const presentIds = new Set();
             allSounds.forEach(sound => {
-                const isActive = state.mixAudios[sound.id] && !state.mixAudios[sound.id].paused;
+                const isActive = state.mixAudios && state.mixAudios[sound.id] && !state.mixAudios[sound.id].paused;
                 const imageUrlToUse = sound.thumbnail_url || sound.image_url;
                 const isLocked = sound.plus_only && !isPlusUser;
                 let item = soundList.querySelector(`.library-sound-item[data-sound-id="${sound.id}"]`);
@@ -1357,6 +1365,10 @@ document.addEventListener('DOMContentLoaded', function() {
                           console.error('Error setting mix audio volume:', error);
                         }
                       }
+                      // Sync all volume sliders for this sound
+                      if (audioEnhancer && audioEnhancer.syncVolumeSliders) {
+                        audioEnhancer.syncVolumeSliders(sound.id, volume);
+                      }
                     });
                     // Append slider to the wrapper (below the sound name)
                     wrapper.appendChild(slider);
@@ -1410,6 +1422,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             renderSoundGrid();
                             updatePlayButton();
                           });
+                          // Update panel to show mix mode
+                          if (typeof onAudioStateChanged === 'function') onAudioStateChanged();
                         } else {
                           const audio = state.mixAudios[soundId];
                           if (audio && audio.paused) {
@@ -1418,16 +1432,24 @@ document.addEventListener('DOMContentLoaded', function() {
                               delete state.mixAudios[soundId];
                               delete state.mixVolumes[soundId];
                             });
+                            // Update panel when resuming mix sound
+                            if (typeof onAudioStateChanged === 'function') onAudioStateChanged();
                           } else if (audio) {
                             audio.pause();
-                            // Remove from mix state when paused (deselected)
+                            // Remove from mix state when deselected in library
                             delete state.mixAudios[soundId];
                             delete state.mixVolumes[soundId];
+                            // Update panel when removing mix sound
+                            if (typeof onAudioStateChanged === 'function') onAudioStateChanged();
                           }
                         }
                         renderSoundLibrary();
                         renderSoundGrid();
                         updatePlayButton();
+                        // Re-render mix menu if it's open to sync the list
+                        if (audioEnhancer && audioEnhancer.elements.mixModeMenu && !audioEnhancer.elements.mixModeMenu.classList.contains('hidden')) {
+                          audioEnhancer.renderMixSounds();
+                        }
                       } catch (error) {
                         console.error('Mix mode handler error:', error);
                         // Cleanup on error
@@ -1453,6 +1475,10 @@ document.addEventListener('DOMContentLoaded', function() {
                           } catch (error) {
                             console.error('Error setting mix audio volume:', error);
                           }
+                        }
+                        // Sync all volume sliders for this sound
+                        if (audioEnhancer && audioEnhancer.syncVolumeSliders) {
+                          audioEnhancer.syncVolumeSliders(soundId, volume);
                         }
                       });
                     }
@@ -2839,6 +2865,9 @@ function playMixSound(sound) {
     console.error('Mix sound playback error:', e);
     stopMixSound(sound.id);
   });
+  
+  // Update panel to show mix mode
+  if (typeof onAudioStateChanged === 'function') onAudioStateChanged();
 }
 
 // --- Timer Functionality ---
@@ -4903,3 +4932,1230 @@ window.addEventListener('beforeunload', () => {
   
   
   
+
+// Single Mode Control Panel - Binaural Beats & Isochronic Tones
+// 
+// SOUND SOURCES EXPLANATION:
+// -------------------------
+// 1. BINAURAL BEATS: Generated in real-time using Web Audio API
+//    - Creates two sine waves with slightly different frequencies
+//    - Left ear: baseFreq - beatFreq/2, Right ear: baseFreq + beatFreq/2
+//    - The brain perceives the difference as a "beat" at the desired frequency
+//    - No external audio files needed - pure mathematical generation
+//
+// 2. ISOCHRONIC TONES: Generated in real-time using Web Audio API
+//    - Single tone that pulses on and off at the desired frequency
+//    - Uses amplitude modulation with a square wave
+//    - More obvious than binaural beats, doesn't require headphones
+//    - Also mathematically generated, no external files
+//
+// 3. AMBIENT SOUNDS: These come from your existing sound library
+//    - Loaded from Supabase database or fallback URLs
+//    - Examples: rain, coffee shop, white noise, etc.
+//    - These are actual audio files (.mp3) streamed from CDN
+//
+// The binaural beats and isochronic tones are layered ON TOP of your ambient sounds
+// to create enhanced focus/relaxation experiences.
+class AudioEnhancer {
+    constructor() {
+        this.audioContext = null;
+        this.binauralNodes = {
+            leftOscillator: null,
+            rightOscillator: null,
+            leftGain: null,
+            rightGain: null,
+            merger: null
+        };
+        this.isochronicNodes = {
+            oscillator: null,
+            modulator: null,
+            gainNode: null,
+            modulatorGain: null
+        };
+        this.isPlaying = {
+            binaural: false,
+            isochronic: false
+        };
+        this.initializeElements();
+        this.setupEventListeners();
+    }
+
+    async initAudioContext() {
+        if (!this.audioContext) {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (this.audioContext.state === "suspended") {
+            await this.audioContext.resume();
+        }
+    }
+
+    initializeElements() {
+        console.log("Initializing AudioEnhancer elements...");
+        this.elements = {
+            singleModeContainer: document.getElementById("single-mode-controls"),
+            currentSoundName: document.getElementById("current-sound-name"),
+            mixCountDisplay: document.getElementById("mix-count-display"),
+            mixCount: document.getElementById("mix-count"),
+            mixMenuBtn: document.getElementById("mix-menu-btn"),
+            mixModeMenu: document.getElementById("mix-mode-menu"),
+            closeMixMenu: document.getElementById("close-mix-menu"),
+            saveMixBtn: document.getElementById("save-mix-btn"),
+            mixSoundsList: document.getElementById("mix-sounds-list"),
+            clearAllSounds: document.getElementById("clear-all-sounds"),
+            binauralBtn: document.getElementById("binaural-btn"),
+            isochronicBtn: document.getElementById("isochronic-btn"),
+            
+            // Dropdown elements
+            binauralDropdown: document.getElementById("binaural-dropdown"),
+            isochronicDropdown: document.getElementById("isochronic-dropdown"),
+            
+            // Binaural controls
+            binauralPresetSelect: document.getElementById("binaural-preset-select"),
+            binauralCustomControls: document.getElementById("binaural-custom-controls"),
+            binauralBaseFreq: document.getElementById("binaural-base-freq"),
+            binauralBeatFreq: document.getElementById("binaural-beat-freq"),
+            binauralVolume: document.getElementById("binaural-volume"),
+            binauralVolumeValue: document.getElementById("binaural-volume-value"),
+            binauralPlayBtn: document.getElementById("binaural-play-btn"),
+            binauralStopBtn: document.getElementById("binaural-stop-btn"),
+            
+            // Isochronic controls
+            isochronicPresetSelect: document.getElementById("isochronic-preset-select"),
+            isochronicCustomControls: document.getElementById("isochronic-custom-controls"),
+            isoBaseFreq: document.getElementById("iso-base-freq"),
+            isoToneFreq: document.getElementById("iso-tone-freq"),
+            isoVolume: document.getElementById("iso-volume"),
+            isoVolumeValue: document.getElementById("iso-volume-value"),
+            isoPlayBtn: document.getElementById("iso-play-btn"),
+            isoStopBtn: document.getElementById("iso-stop-btn")
+        };
+        
+        // Log which elements were found
+        console.log("AudioEnhancer elements found:", {
+            singleModeContainer: !!this.elements.singleModeContainer,
+            currentSoundName: !!this.elements.currentSoundName,
+            mixCountDisplay: !!this.elements.mixCountDisplay,
+            mixCount: !!this.elements.mixCount,
+            mixMenuBtn: !!this.elements.mixMenuBtn,
+            binauralBtn: !!this.elements.binauralBtn,
+            isochronicBtn: !!this.elements.isochronicBtn,
+            binauralDropdown: !!this.elements.binauralDropdown,
+            isochronicDropdown: !!this.elements.isochronicDropdown
+        });
+    }
+
+    setupEventListeners() {
+        console.log("Setting up AudioEnhancer event listeners...");
+        
+        // Panel toggle buttons
+        if (this.elements.binauralBtn) {
+            console.log("Adding click listener to binaural button");
+            this.elements.binauralBtn.addEventListener("click", () => {
+                console.log("Binaural button clicked!");
+                this.toggleDropdown("binaural");
+            });
+        }
+        
+        if (this.elements.isochronicBtn) {
+            console.log("Adding click listener to isochronic button");
+            this.elements.isochronicBtn.addEventListener("click", () => {
+                console.log("Isochronic button clicked!");
+                this.toggleDropdown("isochronic");
+            });
+        }
+        
+        // Preset selection listeners
+        if (this.elements.binauralPresetSelect) {
+            this.elements.binauralPresetSelect.addEventListener("change", (e) => {
+                this.handlePresetChange("binaural", e.target.value);
+            });
+        }
+        
+        if (this.elements.isochronicPresetSelect) {
+            this.elements.isochronicPresetSelect.addEventListener("change", (e) => {
+                this.handlePresetChange("isochronic", e.target.value);
+            });
+        }
+        
+        // Volume controls
+        if (this.elements.binauralVolume) {
+            this.elements.binauralVolume.addEventListener("input", (e) => {
+                this.elements.binauralVolumeValue.textContent = e.target.value + "%";
+                if (this.isPlaying.binaural) this.updateBinauralVolume();
+            });
+        }
+        
+        if (this.elements.isoVolume) {
+            this.elements.isoVolume.addEventListener("input", (e) => {
+                this.elements.isoVolumeValue.textContent = e.target.value + "%";
+                if (this.isPlaying.isochronic) this.updateIsochronicVolume();
+            });
+        }
+        
+        // Mix mode controls
+        if (this.elements.mixMenuBtn) {
+            this.elements.mixMenuBtn.addEventListener("click", () => this.openMixMenu());
+        }
+        
+        if (this.elements.closeMixMenu) {
+            this.elements.closeMixMenu.addEventListener("click", () => this.closeMixMenu());
+        }
+        
+        if (this.elements.clearAllSounds) {
+            this.elements.clearAllSounds.addEventListener("click", () => this.clearAllMixSounds());
+        }
+        
+        // Play/Stop buttons
+        this.elements.binauralPlayBtn?.addEventListener("click", () => this.playBinaural());
+        this.elements.binauralStopBtn?.addEventListener("click", () => this.stopBinaural());
+        this.elements.isoPlayBtn?.addEventListener("click", () => this.playIsochronic());
+        this.elements.isoStopBtn?.addEventListener("click", () => this.stopIsochronic());
+        
+        // Isochronic controls
+        this.elements.isoBaseFreq?.addEventListener("input", (e) => {
+            this.elements.isoBaseValue.textContent = e.target.value + "Hz";
+            if (this.isPlaying.isochronic) this.updateIsochronicFrequencies();
+        });
+        
+        this.elements.isoToneFreq?.addEventListener("input", (e) => {
+            this.elements.isoToneValue.textContent = e.target.value + "Hz";
+            if (this.isPlaying.isochronic) this.updateIsochronicFrequencies();
+        });
+        
+        this.elements.isoVolume?.addEventListener("input", (e) => {
+            this.elements.isoVolumeValue.textContent = e.target.value + "%";
+            if (this.isPlaying.isochronic) this.updateIsochronicVolume();
+        });
+        
+        this.elements.isoPlayBtn?.addEventListener("click", () => this.playIsochronic());
+        this.elements.isoStopBtn?.addEventListener("click", () => this.stopIsochronic());
+        
+        // Preset buttons
+        document.querySelectorAll(".preset-btn").forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                const preset = e.target.dataset.preset;
+                const freq = parseFloat(e.target.dataset.freq);
+                const panel = e.target.closest(".expansion-panel");
+                
+                if (panel.id === "binaural-panel") {
+                    this.applyBinauralPreset(preset, freq);
+                } else if (panel.id === "isochronic-panel") {
+                    this.applyIsochronicPreset(preset, freq);
+                }
+                
+                // Update active state
+                panel.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("active"));
+                e.target.classList.add("active");
+            });
+        });
+    }
+
+    showSingleModePanel() {
+        if (this.elements.singleModeContainer) {
+            this.elements.singleModeContainer.classList.remove("hidden");
+            // Force display override for the global .hidden class
+            this.elements.singleModeContainer.style.display = "block";
+            console.log("Single mode panel shown");
+        }
+    }
+
+    hideSingleModePanel() {
+        if (this.elements.singleModeContainer) {
+            this.elements.singleModeContainer.classList.add("hidden");
+            this.elements.singleModeContainer.style.display = "";
+        }
+        this.closeAllDropdowns();
+    }
+
+    updateCurrentSoundName(soundName) {
+        if (this.elements.currentSoundName) {
+            this.elements.currentSoundName.textContent = soundName || "No Sound Playing";
+        }
+    }
+
+    updateMixCount(count) {
+        if (this.elements.mixCount) {
+            this.elements.mixCount.textContent = count;
+        }
+        
+        // Show mix count display in mix mode, hide single sound name
+        if (count > 0) {
+            this.elements.currentSoundName?.classList.add("hidden");
+            if (this.elements.currentSoundName) {
+                this.elements.currentSoundName.style.display = "none";
+            }
+            
+            this.elements.mixCountDisplay?.classList.remove("hidden");
+            if (this.elements.mixCountDisplay) {
+                this.elements.mixCountDisplay.style.display = "flex";
+            }
+        } else {
+            this.elements.currentSoundName?.classList.remove("hidden");
+            if (this.elements.currentSoundName) {
+                this.elements.currentSoundName.style.display = "block";
+            }
+            
+            this.elements.mixCountDisplay?.classList.add("hidden");
+            if (this.elements.mixCountDisplay) {
+                this.elements.mixCountDisplay.style.display = "none";
+            }
+        }
+    }
+
+    toggleDropdown(type) {
+        console.log("toggleDropdown called with type:", type);
+        const dropdown = this.elements[type + "Dropdown"];
+        const btn = this.elements[type + "Btn"];
+        
+        console.log("Dropdown element:", dropdown);
+        console.log("Button element:", btn);
+        
+        if (dropdown && dropdown.classList.contains("hidden")) {
+            console.log("Opening dropdown");
+            this.closeAllDropdowns();
+            dropdown.classList.remove("hidden");
+            dropdown.style.display = "block";
+            if (btn) btn.classList.add("active");
+        } else if (dropdown) {
+            console.log("Closing dropdown");
+            dropdown.classList.add("hidden");
+            dropdown.style.display = "";
+            if (btn) btn.classList.remove("active");
+        }
+    }
+
+    closeAllDropdowns() {
+        this.closeDropdown("binaural");
+        this.closeDropdown("isochronic");
+    }
+
+    closeDropdown(type) {
+        const dropdown = this.elements[type + "Dropdown"];
+        const btn = this.elements[type + "Btn"];
+        
+        if (dropdown) {
+            dropdown.classList.add("hidden");
+            dropdown.style.display = "";
+        }
+        if (btn) btn.classList.remove("active");
+    }
+
+    handlePresetChange(type, value) {
+        console.log(`${type} preset changed to:`, value);
+        
+        const customControls = this.elements[type + "CustomControls"];
+        
+        if (value === "custom") {
+            // Show custom controls
+            if (customControls) customControls.classList.remove("hidden");
+        } else {
+            // Hide custom controls and apply preset
+            if (customControls) customControls.classList.add("hidden");
+            
+            if (value) {
+                this.applyPreset(type, value);
+            }
+        }
+    }
+
+    applyPreset(type, presetValue) {
+        const [preset, freqStr] = presetValue.split("-");
+        const freq = parseFloat(freqStr);
+        
+        console.log(`Applying ${type} preset: ${preset} (${freq}Hz)`);
+        
+        if (type === "binaural") {
+            if (this.elements.binauralBeatFreq) {
+                this.elements.binauralBeatFreq.value = freq;
+            }
+        } else if (type === "isochronic") {
+            if (this.elements.isoToneFreq) {
+                this.elements.isoToneFreq.value = freq;
+            }
+        }
+    }
+
+    closePanel(type) {
+        const panel = this.elements[type + "Panel"];
+        const btn = this.elements[type + "Btn"];
+        
+        panel.classList.add("hidden");
+        btn.classList.remove("active");
+    }
+
+    closeAllPanels() {
+        this.closePanel("binaural");
+        this.closePanel("isochronic");
+    }
+
+    // Binaural Beats Implementation
+    async playBinaural() {
+        try {
+            await this.initAudioContext();
+            this.stopBinaural();
+
+            const baseFreq = parseFloat(this.elements.binauralBaseFreq.value) || 440;
+            const beatFreq = parseFloat(this.elements.binauralBeatFreq.value) || 10;
+            const volume = parseFloat(this.elements.binauralVolume.value) / 100 || 0.3;
+
+            // Calculate frequencies
+            const leftFreq = baseFreq - beatFreq / 2;
+            const rightFreq = baseFreq + beatFreq / 2;
+
+            // Create oscillators
+            this.binauralNodes.leftOscillator = this.audioContext.createOscillator();
+            this.binauralNodes.rightOscillator = this.audioContext.createOscillator();
+            this.binauralNodes.leftGain = this.audioContext.createGain();
+            this.binauralNodes.rightGain = this.audioContext.createGain();
+            this.binauralNodes.merger = this.audioContext.createChannelMerger(2);
+
+            // Configure oscillators
+            this.binauralNodes.leftOscillator.frequency.setValueAtTime(leftFreq, this.audioContext.currentTime);
+            this.binauralNodes.rightOscillator.frequency.setValueAtTime(rightFreq, this.audioContext.currentTime);
+            this.binauralNodes.leftOscillator.type = "sine";
+            this.binauralNodes.rightOscillator.type = "sine";
+
+            // Set volumes
+            this.binauralNodes.leftGain.gain.setValueAtTime(volume, this.audioContext.currentTime);
+            this.binauralNodes.rightGain.gain.setValueAtTime(volume, this.audioContext.currentTime);
+
+            // Connect nodes
+            this.binauralNodes.leftOscillator.connect(this.binauralNodes.leftGain);
+            this.binauralNodes.rightOscillator.connect(this.binauralNodes.rightGain);
+            this.binauralNodes.leftGain.connect(this.binauralNodes.merger, 0, 0);
+            this.binauralNodes.rightGain.connect(this.binauralNodes.merger, 0, 1);
+            this.binauralNodes.merger.connect(this.audioContext.destination);
+
+            // Start oscillators
+            this.binauralNodes.leftOscillator.start();
+            this.binauralNodes.rightOscillator.start();
+
+            this.isPlaying.binaural = true;
+            this.elements.binauralBtn.classList.add("active");
+            this.elements.binauralPlayBtn.disabled = true;
+            this.elements.binauralStopBtn.disabled = false;
+
+        } catch (error) {
+            console.error("Error playing binaural beats:", error);
+        }
+    }
+
+    stopBinaural() {
+        if (this.binauralNodes.leftOscillator) {
+            this.binauralNodes.leftOscillator.stop();
+            this.binauralNodes.leftOscillator.disconnect();
+        }
+        if (this.binauralNodes.rightOscillator) {
+            this.binauralNodes.rightOscillator.stop();
+            this.binauralNodes.rightOscillator.disconnect();
+        }
+        if (this.binauralNodes.leftGain) this.binauralNodes.leftGain.disconnect();
+        if (this.binauralNodes.rightGain) this.binauralNodes.rightGain.disconnect();
+        if (this.binauralNodes.merger) this.binauralNodes.merger.disconnect();
+
+        this.binauralNodes = {
+            leftOscillator: null,
+            rightOscillator: null,
+            leftGain: null,
+            rightGain: null,
+            merger: null
+        };
+
+        this.isPlaying.binaural = false;
+        if (!this.isPlaying.isochronic) {
+            this.elements.binauralBtn.classList.remove("active");
+        }
+        this.elements.binauralPlayBtn.disabled = false;
+        this.elements.binauralStopBtn.disabled = true;
+    }
+
+    updateBinauralFrequencies() {
+        if (!this.isPlaying.binaural) return;
+
+        const baseFreq = parseFloat(this.elements.binauralBaseFreq.value);
+        const beatFreq = parseFloat(this.elements.binauralBeatFreq.value);
+        const leftFreq = baseFreq - beatFreq / 2;
+        const rightFreq = baseFreq + beatFreq / 2;
+
+        if (this.binauralNodes.leftOscillator) {
+            this.binauralNodes.leftOscillator.frequency.setValueAtTime(leftFreq, this.audioContext.currentTime);
+        }
+        if (this.binauralNodes.rightOscillator) {
+            this.binauralNodes.rightOscillator.frequency.setValueAtTime(rightFreq, this.audioContext.currentTime);
+        }
+    }
+
+    updateBinauralVolume() {
+        if (!this.isPlaying.binaural) return;
+
+        const volume = parseFloat(this.elements.binauralVolume.value) / 100;
+        if (this.binauralNodes.leftGain) {
+            this.binauralNodes.leftGain.gain.setValueAtTime(volume, this.audioContext.currentTime);
+        }
+        if (this.binauralNodes.rightGain) {
+            this.binauralNodes.rightGain.gain.setValueAtTime(volume, this.audioContext.currentTime);
+        }
+    }
+
+    // Isochronic Tones Implementation
+    async playIsochronic() {
+        try {
+            await this.initAudioContext();
+            this.stopIsochronic();
+
+            const baseFreq = parseFloat(this.elements.isoBaseFreq.value) || 440;
+            const toneFreq = parseFloat(this.elements.isoToneFreq.value) || 10;
+            const volume = parseFloat(this.elements.isoVolume.value) / 100 || 0.3;
+
+            // Create nodes
+            this.isochronicNodes.oscillator = this.audioContext.createOscillator();
+            this.isochronicNodes.modulator = this.audioContext.createOscillator();
+            this.isochronicNodes.gainNode = this.audioContext.createGain();
+            this.isochronicNodes.modulatorGain = this.audioContext.createGain();
+
+            // Configure main oscillator
+            this.isochronicNodes.oscillator.frequency.setValueAtTime(baseFreq, this.audioContext.currentTime);
+            this.isochronicNodes.oscillator.type = "sine";
+
+            // Configure modulator (for isochronic effect)
+            this.isochronicNodes.modulator.frequency.setValueAtTime(toneFreq, this.audioContext.currentTime);
+            this.isochronicNodes.modulator.type = "square";
+
+            // Set up modulation
+            this.isochronicNodes.modulatorGain.gain.setValueAtTime(0.5, this.audioContext.currentTime);
+            this.isochronicNodes.gainNode.gain.setValueAtTime(volume, this.audioContext.currentTime);
+
+            // Connect nodes for amplitude modulation
+            this.isochronicNodes.modulator.connect(this.isochronicNodes.modulatorGain);
+            this.isochronicNodes.modulatorGain.connect(this.isochronicNodes.gainNode.gain);
+            this.isochronicNodes.oscillator.connect(this.isochronicNodes.gainNode);
+            this.isochronicNodes.gainNode.connect(this.audioContext.destination);
+
+            // Start oscillators
+            this.isochronicNodes.oscillator.start();
+            this.isochronicNodes.modulator.start();
+
+            this.isPlaying.isochronic = true;
+            this.elements.isochronicBtn.classList.add("active");
+            this.elements.isoPlayBtn.disabled = true;
+            this.elements.isoStopBtn.disabled = false;
+
+        } catch (error) {
+            console.error("Error playing isochronic tones:", error);
+        }
+    }
+
+    stopIsochronic() {
+        if (this.isochronicNodes.oscillator) {
+            this.isochronicNodes.oscillator.stop();
+            this.isochronicNodes.oscillator.disconnect();
+        }
+        if (this.isochronicNodes.modulator) {
+            this.isochronicNodes.modulator.stop();
+            this.isochronicNodes.modulator.disconnect();
+        }
+        if (this.isochronicNodes.gainNode) this.isochronicNodes.gainNode.disconnect();
+        if (this.isochronicNodes.modulatorGain) this.isochronicNodes.modulatorGain.disconnect();
+
+        this.isochronicNodes = {
+            oscillator: null,
+            modulator: null,
+            gainNode: null,
+            modulatorGain: null
+        };
+
+        this.isPlaying.isochronic = false;
+        if (!this.isPlaying.binaural) {
+            this.elements.isochronicBtn.classList.remove("active");
+        }
+        this.elements.isoPlayBtn.disabled = false;
+        this.elements.isoStopBtn.disabled = true;
+    }
+
+    updateIsochronicFrequencies() {
+        if (!this.isPlaying.isochronic) return;
+
+        const baseFreq = parseFloat(this.elements.isoBaseFreq.value);
+        const toneFreq = parseFloat(this.elements.isoToneFreq.value);
+
+        if (this.isochronicNodes.oscillator) {
+            this.isochronicNodes.oscillator.frequency.setValueAtTime(baseFreq, this.audioContext.currentTime);
+        }
+        if (this.isochronicNodes.modulator) {
+            this.isochronicNodes.modulator.frequency.setValueAtTime(toneFreq, this.audioContext.currentTime);
+        }
+    }
+
+    updateIsochronicVolume() {
+        if (!this.isPlaying.isochronic) return;
+
+        const volume = parseFloat(this.elements.isoVolume.value) / 100;
+        if (this.isochronicNodes.gainNode) {
+            this.isochronicNodes.gainNode.gain.setValueAtTime(volume, this.audioContext.currentTime);
+        }
+    }
+
+    // Preset applications
+    applyBinauralPreset(preset, freq) {
+        this.elements.binauralBeatFreq.value = freq;
+        this.elements.binauralBeatValue.textContent = freq + "Hz";
+        if (this.isPlaying.binaural) {
+            this.updateBinauralFrequencies();
+        }
+    }
+
+    applyIsochronicPreset(preset, freq) {
+        this.elements.isoToneFreq.value = freq;
+        this.elements.isoToneValue.textContent = freq + "Hz";
+        if (this.isPlaying.isochronic) {
+            this.updateIsochronicFrequencies();
+        }
+    }
+
+    // Mix Mode Menu Functions
+    openMixMenu() {
+        console.log("Opening mix menu");
+        this.renderMixSounds();
+        if (this.elements.mixModeMenu) {
+            this.elements.mixModeMenu.classList.remove("hidden");
+            this.elements.mixModeMenu.style.display = "flex";
+            // Force visibility and opacity for the new positioning
+            this.elements.mixModeMenu.style.opacity = "1";
+            this.elements.mixModeMenu.style.visibility = "visible";
+            console.log("Mix menu should now be visible with new styling");
+        } else {
+            console.log("mixModeMenu element not found");
+        }
+    }
+
+    closeMixMenu() {
+        console.log("Closing mix menu");
+        if (this.elements.mixModeMenu) {
+            this.elements.mixModeMenu.classList.add("hidden");
+            this.elements.mixModeMenu.style.display = "";
+            this.elements.mixModeMenu.style.opacity = "";
+            this.elements.mixModeMenu.style.visibility = "";
+        }
+    }
+
+    renderMixSounds() {
+        if (!this.elements.mixSoundsList) {
+            console.log("mixSoundsList element not found");
+            return;
+        }
+        
+        const mixSounds = this.getMixSounds();
+        console.log("Rendering mix sounds:", mixSounds);
+        
+        // If no real mix sounds, show empty state
+        if (mixSounds.length === 0) {
+            console.log("No mix sounds found, showing empty state");
+            this.elements.mixSoundsList.innerHTML = `
+                <div class="empty-mix-state">
+                    <p style="color: rgba(255, 255, 255, 0.6); text-align: center; padding: 20px; font-size: 14px;">
+                        No sounds in mix. Add sounds from the library.
+                    </p>
+                </div>
+            `;
+        } else {
+            this.elements.mixSoundsList.innerHTML = mixSounds.map(sound => `
+                <div class="mix-sound-item" data-sound-id="${sound.id}">
+                    <div class="mix-sound-icon">
+                        <img src="${sound.icon || sound.mix_mode_icon || sound.thumbnail_url || sound.image_url || sound.thumbnailUrl || sound.imageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDEzQzEyLjU1MjMgMTMgMTMgMTIuNTUyMyAxMyAxMkMxMyAxMS40NDc3IDEyLjU1MjMgMTEgMTIgMTFDMTEuNDQ3NyAxMSAxMSAxMS40NDc3IDExIDEyQzExIDEyLjU1MjMgMTEuNDQ3NyAxMyAxMiAxM1oiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0xMiA2QzEyLjU1MjMgNiAxMyA1LjU1MjI4IDEzIDVDMTMgNC40NDc3MiAxMi41NTIzIDQgMTIgNEMxMS40NDc3IDQgMTEgNC40NDc3MiAxMSA1QzExIDUuNTUyMjggMTEuNDQ3NyA2IDEyIDZaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTIgMjBDMTIuNTUyMyAyMCAxMyAxOS41NTIzIDEzIDE5QzEzIDE4LjQ0NzcgMTIuNTUyMyAxOCAxMiAxOEMxMS40NDc3IDE4IDExIDE4LjQ0NzcgMTEgMTlDMTEgMTkuNTUyMyAxMS40NDc3IDIwIDEyIDIwWiIgZmlsbD0id2hpdGUiLz4KPHN2Zz4K'}" alt="Mix Icon">
+                    </div>
+                    <div class="mix-sound-content">
+                        <input 
+                            type="range" 
+                            class="mix-volume-slider" 
+                            min="0" 
+                            max="100" 
+                            value="${sound.volume || 50}"
+                            data-sound-id="${sound.id}"
+                        >
+                    </div>
+                    <button class="remove-sound-btn" data-sound-id="${sound.id}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+            `).join('');
+        }
+        
+        console.log("Mix sounds rendered, content:", this.elements.mixSoundsList.innerHTML);
+        
+        // Add event listeners for volume sliders and remove buttons
+        this.setupMixControlListeners();
+        
+        // Re-render sound library to sync sliders
+        if (typeof renderSoundLibrary === 'function') {
+            renderSoundLibrary();
+        }
+    }
+
+    getMixSounds() {
+        // Get mix sounds from global state
+        console.log("getMixSounds - state.mixAudios:", state.mixAudios);
+        
+        if (!state.mixAudios) return [];
+        
+        // Try to get sounds from window or create fallback
+        const soundsArray = window.sounds || this.getFallbackSounds();
+        console.log("getMixSounds - sounds array:", soundsArray);
+        
+        const mixSounds = Object.keys(state.mixAudios).map(soundId => {
+            const sound = soundsArray.find(s => s.id === soundId);
+            console.log(`Found sound for ${soundId}:`, sound);
+            
+            // If sound not found, create a basic one
+            if (!sound) {
+                return {
+                    id: soundId,
+                    name: soundId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                    imageUrl: "https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif",
+                    thumbnailUrl: "https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif",
+                    volume: state.mixVolumes[soundId] || 50
+                };
+            }
+            
+            // Debug: Log available icon fields
+            console.log(`Sound ${soundId} icon fields:`, {
+                icon: sound.icon,
+                mix_mode_icon: sound.mix_mode_icon,
+                thumbnail_url: sound.thumbnail_url,
+                image_url: sound.image_url,
+                thumbnailUrl: sound.thumbnailUrl,
+                imageUrl: sound.imageUrl
+            });
+            
+            return {
+                ...sound,
+                volume: state.mixVolumes[soundId] || 50
+            };
+        }).filter(Boolean);
+        
+        console.log("getMixSounds result:", mixSounds);
+        return mixSounds;
+    }
+    
+    getFallbackSounds() {
+        return [
+            {
+                id: "test1",
+                name: "Test Sound 1",
+                imageUrl: "https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif",
+                thumbnailUrl: "https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif"
+            },
+            {
+                id: "test2", 
+                name: "Test Sound 2",
+                imageUrl: "https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif",
+                thumbnailUrl: "https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif"
+            },
+            {
+                id: "white-noise",
+                name: "White Noise",
+                imageUrl: "https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif",
+                thumbnailUrl: "https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif"
+            },
+            {
+                id: "heavy-rain",
+                name: "Heavy Rain", 
+                imageUrl: "https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif",
+                thumbnailUrl: "https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif"
+            }
+        ];
+    }
+
+    setupMixControlListeners() {
+        // Volume sliders
+        document.querySelectorAll('.mix-volume-slider').forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                const soundId = e.target.dataset.soundId;
+                const volume = parseFloat(e.target.value);
+                this.updateMixSoundVolume(soundId, volume);
+            });
+        });
+        
+        // Remove buttons
+        document.querySelectorAll('.remove-sound-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const soundId = e.target.closest('.remove-sound-btn').dataset.soundId;
+                this.removeMixSound(soundId);
+            });
+        });
+    }
+
+    updateMixSoundVolume(soundId, volume) {
+        console.log(`Updating volume for ${soundId}: ${volume}%`);
+        
+        // Update global state
+        if (state.mixVolumes) {
+            state.mixVolumes[soundId] = volume;
+        }
+        
+        // Update actual audio volume
+        if (state.mixAudios && state.mixAudios[soundId]) {
+            state.mixAudios[soundId].volume = volume / 100;
+        }
+        
+        // Sync all volume sliders for this sound
+        this.syncVolumeSliders(soundId, volume);
+    }
+    
+    syncVolumeSliders(soundId, volume) {
+        // Update all mix volume sliders with this sound ID (in mix menu)
+        document.querySelectorAll(`[data-sound-id="${soundId}"].mix-volume-slider`).forEach(slider => {
+            if (slider.value != volume) {
+                slider.value = volume;
+            }
+        });
+        
+        // Update library sound sliders (in sound library)
+        document.querySelectorAll(`[data-sound-id="${soundId}"] .mix-volume-slider`).forEach(slider => {
+            if (slider.value != volume) {
+                slider.value = volume;
+            }
+        });
+        
+        // Update sliders in library sound wrappers
+        document.querySelectorAll(`.library-sound-wrapper [data-sound-id="${soundId}"].mix-volume-slider`).forEach(slider => {
+            if (slider.value != volume) {
+                slider.value = volume;
+            }
+        });
+    }
+
+    removeMixSound(soundId) {
+        console.log(`Removing mix sound: ${soundId}`);
+        
+        // Stop and remove from global state
+        if (state.mixAudios && state.mixAudios[soundId]) {
+            state.mixAudios[soundId].pause();
+            state.mixAudios[soundId].currentTime = 0;
+            delete state.mixAudios[soundId];
+        }
+        
+        if (state.mixVolumes && soundId in state.mixVolumes) {
+            delete state.mixVolumes[soundId];
+        }
+        
+        // Debug: Verify state is cleared
+        console.log(`After removal - soundId ${soundId} in mixAudios:`, soundId in (state.mixAudios || {}));
+        console.log(`After removal - soundId ${soundId} in mixVolumes:`, soundId in (state.mixVolumes || {}));
+        
+        // Force immediate DOM update for the specific sound
+        const libraryItem = document.querySelector(`[data-sound-id="${soundId}"]`);
+        if (libraryItem) {
+            console.log(`Force removing active class from ${soundId}`);
+            libraryItem.classList.remove('active');
+            
+            const wrapper = libraryItem.closest('.library-sound-wrapper');
+            const volumeSlider = wrapper?.querySelector('.mix-volume-slider');
+            if (volumeSlider) {
+                console.log(`Force removing volume slider for ${soundId}`);
+                volumeSlider.remove();
+            }
+        }
+        
+        // Update mix count first
+        const mixCount = Object.keys(state.mixAudios || {}).length;
+        this.updateMixCount(mixCount);
+        
+        // Re-render all UI elements to ensure consistency using window scope
+        try {
+            console.log('Calling renderSoundLibrary from removeMixSound');
+            window.renderSoundLibrary();
+        } catch (error) {
+            console.error('Error calling renderSoundLibrary:', error);
+        }
+        
+        try {
+            console.log('Calling updatePlayButton from removeMixSound');
+            window.updatePlayButton();
+        } catch (error) {
+            console.error('Error calling updatePlayButton:', error);
+        }
+        
+        try {
+            console.log('Calling renderSoundGrid from removeMixSound');
+            window.renderSoundGrid();
+        } catch (error) {
+            console.error('Error calling renderSoundGrid:', error);
+        }
+        
+        // Trigger audio state change to update play/pause button
+        if (typeof onAudioStateChanged === 'function') {
+            onAudioStateChanged();
+        }
+        
+        // Re-render the mix menu last
+        this.renderMixSounds();
+        
+        // If no sounds left, hide the panel
+        if (mixCount === 0) {
+            this.hideSingleModePanel();
+        }
+    }
+
+    clearAllMixSounds() {
+        console.log("Clearing all mix sounds");
+        
+        // Stop all mix audios
+        if (state.mixAudios) {
+            Object.values(state.mixAudios).forEach(audio => {
+                audio.pause();
+                audio.currentTime = 0;
+            });
+            state.mixAudios = {};
+        }
+        
+        if (state.mixVolumes) {
+            state.mixVolumes = {};
+        }
+        
+        // Update UI elements
+        if (typeof updatePlayButton === 'function') {
+            updatePlayButton();
+        }
+        
+        if (typeof renderSoundGrid === 'function') {
+            renderSoundGrid();
+        }
+        
+        // Re-render sound library to remove active states
+        if (typeof renderSoundLibrary === 'function') {
+            renderSoundLibrary();
+        }
+        
+        // Close menu and update display
+        this.closeMixMenu();
+        this.updateMixCount(0);
+        this.hideSingleModePanel();
+    }
+
+    // Cleanup method
+    cleanup() {
+        this.stopBinaural();
+        this.stopIsochronic();
+        if (this.audioContext) {
+            this.audioContext.close();
+            this.audioContext = null;
+        }
+    }
+}
+
+// Initialize audio enhancer
+let audioEnhancer = null;
+
+// Global debug function (always available)
+window.checkMixElements = function() {
+    console.log("=== CHECKING MIX ELEMENTS ===");
+    
+    const singleMode = document.getElementById("single-mode-controls");
+    const mixMenu = document.getElementById("mix-mode-menu");
+    const mixCount = document.getElementById("mix-count-display");
+    const mixSoundsList = document.getElementById("mix-sounds-list");
+    
+    console.log("single-mode-controls:", !!singleMode, singleMode);
+    console.log("mix-mode-menu:", !!mixMenu, mixMenu);
+    console.log("mix-count-display:", !!mixCount, mixCount);
+    console.log("mix-sounds-list:", !!mixSoundsList, mixSoundsList);
+    
+    console.log("audioEnhancer:", !!audioEnhancer, audioEnhancer);
+    
+    // Try to force show the mix menu
+    if (mixMenu) {
+        console.log("Forcing mix menu to show...");
+        mixMenu.className = "mix-mode-menu"; // Remove hidden class
+        mixMenu.style.cssText = `
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            background: linear-gradient(135deg, rgba(75, 0, 130, 0.95), rgba(123, 44, 191, 0.95)) !important;
+            z-index: 20000 !important;
+            display: flex !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            flex-direction: column !important;
+            padding: 20px !important;
+        `;
+        
+        // Add some test content
+        if (mixSoundsList) {
+            mixSoundsList.innerHTML = `
+                <div style="color: white; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 15px; margin: 20px 0;">
+                    <h3>Test Mix Sound</h3>
+                    <input type="range" min="0" max="100" value="50" style="width: 100%; margin: 10px 0;">
+                    <button onclick="this.parentElement.remove()" style="background: red; color: white; border: none; padding: 10px; border-radius: 5px;">Remove</button>
+                </div>
+            `;
+        }
+        
+        console.log("Mix menu should now be visible!");
+    } else {
+        console.log("ERROR: mix-mode-menu element not found in DOM!");
+    }
+};
+
+// Initialize AudioEnhancer
+function initializeAudioEnhancer() {
+    console.log("Initializing AudioEnhancer...");
+    try {
+        audioEnhancer = new AudioEnhancer();
+        console.log("AudioEnhancer initialized successfully:", audioEnhancer);
+        
+        // Test function to manually show the panel (for debugging)
+        window.testShowPanel = () => {
+            console.log("Test: Showing single mode panel");
+            audioEnhancer.showSingleModePanel();
+            audioEnhancer.updateCurrentSoundName("Test Sound");
+        };
+        
+        // Test function to force show binaural panel
+        window.testShowBinauralPanel = () => {
+            console.log("Force showing binaural panel");
+            const panel = document.getElementById("binaural-panel");
+            if (panel) {
+                panel.classList.remove("hidden");
+                panel.style.opacity = "1";
+                panel.style.visibility = "visible";
+                panel.style.display = "block";
+                panel.style.zIndex = "10000";
+                console.log("Panel forced visible");
+            }
+        };
+        
+        // Test function to force show mix mode
+        window.testMixMode = () => {
+            console.log("Testing mix mode display");
+            audioEnhancer.showSingleModePanel();
+            audioEnhancer.updateMixCount(3);
+            console.log("Mix mode panel should be visible with 3 sounds");
+        };
+        
+        // Test function to simulate mix mode with real data
+        window.testMixModeWithData = () => {
+            console.log("Testing mix mode with mock data");
+            
+            // Set up mock mix state
+            state.isMixMode = true;
+            state.mixAudios = {
+                "white-noise": { volume: 0.5 },
+                "heavy-rain": { volume: 0.7 },
+                "coffee-shop": { volume: 0.3 }
+            };
+            state.mixVolumes = {
+                "white-noise": 50,
+                "heavy-rain": 70,
+                "coffee-shop": 30
+            };
+            
+            // Update the panel
+            audioEnhancer.showSingleModePanel();
+            audioEnhancer.updateMixCount(3);
+            
+            console.log("Mock mix mode setup complete - try clicking the menu button");
+        };
+        
+        // Test function to directly open mix menu
+        window.testMixMenu = () => {
+            console.log("Testing mix menu directly");
+            audioEnhancer.openMixMenu();
+        };
+        
+        // Test function to debug elements
+        window.debugElements = () => {
+            console.log("=== DEBUGGING ELEMENTS ===");
+            
+            const singleMode = document.getElementById("single-mode-controls");
+            const mixMenu = document.getElementById("mix-mode-menu");
+            const mixCount = document.getElementById("mix-count-display");
+            
+            console.log("single-mode-controls element:", singleMode);
+            console.log("mix-mode-menu element:", mixMenu);
+            console.log("mix-count-display element:", mixCount);
+            
+            if (singleMode) {
+                console.log("single-mode classes:", singleMode.className);
+                console.log("single-mode style.display:", singleMode.style.display);
+                console.log("single-mode computed display:", getComputedStyle(singleMode).display);
+            }
+            
+            if (mixMenu) {
+                console.log("mix-menu classes:", mixMenu.className);
+                console.log("mix-menu style.display:", mixMenu.style.display);
+                console.log("mix-menu computed display:", getComputedStyle(mixMenu).display);
+            }
+            
+            // Force show mix menu with inline styles
+            if (mixMenu) {
+                mixMenu.style.position = "fixed";
+                mixMenu.style.top = "0";
+                mixMenu.style.left = "0";
+                mixMenu.style.width = "100%";
+                mixMenu.style.height = "100%";
+                mixMenu.style.background = "linear-gradient(135deg, rgba(75, 0, 130, 0.95), rgba(123, 44, 191, 0.95))";
+                mixMenu.style.zIndex = "20000";
+                mixMenu.style.display = "flex";
+                mixMenu.style.opacity = "1";
+                mixMenu.style.visibility = "visible";
+                mixMenu.classList.remove("hidden");
+                console.log("Force showing mix menu with inline styles");
+            }
+        };
+        
+        // Test function to add mock content to mix menu
+        window.testMixContent = () => {
+            console.log("Adding mock content to mix menu");
+            
+            const mixSoundsList = document.getElementById("mix-sounds-list");
+            if (mixSoundsList) {
+                mixSoundsList.innerHTML = `
+                    <div class="mix-sound-item">
+                        <div class="mix-sound-icon">
+                            <img src="https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif" alt="White Noise">
+                        </div>
+                        <div class="mix-sound-content">
+                            <div class="mix-sound-name">White Noise</div>
+                            <input type="range" class="mix-volume-slider" min="0" max="100" value="50">
+                        </div>
+                        <button class="remove-sound-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="mix-sound-item">
+                        <div class="mix-sound-icon">
+                            <img src="https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif" alt="Rain">
+                        </div>
+                        <div class="mix-sound-content">
+                            <div class="mix-sound-name">Heavy Rain</div>
+                            <input type="range" class="mix-volume-slider" min="0" max="100" value="70">
+                        </div>
+                        <button class="remove-sound-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                console.log("Mock content added to mix sounds list");
+            } else {
+                console.log("mix-sounds-list element not found");
+            }
+        };
+        
+        // Simple test functions that should work
+        window.showMixPanel = () => {
+            console.log("Showing mix panel manually");
+            state.isMixMode = true;
+            state.mixAudios = { "test1": {}, "test2": {} };
+            updateSingleModePanel();
+        };
+        
+        window.hideMixPanel = () => {
+            console.log("Hiding mix panel");
+            audioEnhancer.hideSingleModePanel();
+        };
+        
+        window.addContentToMixMenu = () => {
+            console.log("Adding content to mix menu");
+            const mixSoundsList = document.getElementById("mix-sounds-list");
+            if (mixSoundsList) {
+                mixSoundsList.innerHTML = `
+                    <div class="mix-sound-item" style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; padding: 15px; background: rgba(255, 255, 255, 0.1); border-radius: 20px;">
+                        <div class="mix-sound-icon" style="width: 44px; height: 44px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center;">
+                            <img src="https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif" alt="White Noise" style="width: 24px; height: 24px; border-radius: 50%;">
+                        </div>
+                        <div class="mix-sound-content" style="flex: 1;">
+                            <div class="mix-sound-name" style="color: white; font-size: 16px; font-weight: 500; margin-bottom: 8px;">White Noise</div>
+                            <input type="range" class="mix-volume-slider" min="0" max="100" value="50" style="width: 100%; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px;">
+                        </div>
+                        <button class="remove-sound-btn" style="background: rgba(255, 59, 48, 0.8); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="mix-sound-item" style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; padding: 15px; background: rgba(255, 255, 255, 0.1); border-radius: 20px;">
+                        <div class="mix-sound-icon" style="width: 44px; height: 44px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center;">
+                            <img src="https://i.pinimg.com/originals/5f/a7/56/5fa756bd5a44204fc72891f265b4fd2b.gif" alt="Rain" style="width: 24px; height: 24px; border-radius: 50%;">
+                        </div>
+                        <div class="mix-sound-content" style="flex: 1;">
+                            <div class="mix-sound-name" style="color: white; font-size: 16px; font-weight: 500; margin-bottom: 8px;">Heavy Rain</div>
+                            <input type="range" class="mix-volume-slider" min="0" max="100" value="70" style="width: 100%; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px;">
+                        </div>
+                        <button class="remove-sound-btn" style="background: rgba(255, 59, 48, 0.8); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                console.log("Content added to mix menu!");
+            }
+        };
+        
+        console.log("Try: checkMixElements(), showMixPanel(), or hideMixPanel()");
+    } catch (error) {
+        console.error("Error initializing AudioEnhancer:", error);
+    }
+}
+
+// Initialize when DOM is ready or immediately if already loaded
+if (document.readyState === 'loading') {
+    document.addEventListener("DOMContentLoaded", initializeAudioEnhancer);
+} else {
+    initializeAudioEnhancer();
+}
+
+// Integration with existing audio system
+// Show/hide single mode panel based on playing state
+function updateSingleModePanel() {
+    if (!audioEnhancer) {
+        console.log("audioEnhancer not available");
+        return;
+    }
+    
+    console.log("updateSingleModePanel called", {
+        isMixMode: state.isMixMode,
+        isPlaying: state.isPlaying,
+        currentSound: state.currentSound,
+        mixAudios: state.mixAudios
+    });
+    
+    if (state.isMixMode) {
+        // Mix mode - show count of playing sounds (always show panel in mix mode)
+        const mixCount = Object.keys(state.mixAudios || {}).length;
+        console.log("Mix mode detected, mix count:", mixCount);
+        audioEnhancer.showSingleModePanel();
+        audioEnhancer.updateMixCount(mixCount);
+    } else if (state.isPlaying && state.currentSound) {
+        // Single mode - show current sound name
+        console.log("Single mode detected:", state.currentSound.name);
+        audioEnhancer.showSingleModePanel();
+        audioEnhancer.updateCurrentSoundName(state.currentSound.name);
+        audioEnhancer.updateMixCount(0); // Hide mix count display
+    } else {
+        console.log("No audio playing, hiding panel");
+        audioEnhancer.hideSingleModePanel();
+    }
+}
+
+// Integration hook - call this after audio state changes
+function onAudioStateChanged() {
+    setTimeout(() => updateSingleModePanel(), 100);
+}
+
+// Cleanup on page unload
+window.addEventListener("beforeunload", () => {
+    if (audioEnhancer) {
+        audioEnhancer.cleanup();
+    }
+});
+
+
